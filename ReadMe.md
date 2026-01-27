@@ -48,7 +48,7 @@ sudo mv calma.sh /opt/calma/scripts/
 sudo mv imapfilter_config.lua /opt/calma/config/
 
 sudo chmod 755 /opt/calma/scripts/calma.sh
-sudo chown -R $USER:$USER /opt/calma  # Ou o usuário que executará o script
+sudo chown -R $USER:$USER /opt/calma  # Ou o utilizador que executará o script
 ```
 
 ## Configuração
@@ -214,6 +214,7 @@ Para reportar bugs ou sugerir melhorias:
 1. Verifique os logs em `/opt/calma/logs/`
 2. Documente os passos para reproduzir o problema
 3. Inclua trechos relevantes dos logs
+
 
 
 
