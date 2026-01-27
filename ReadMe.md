@@ -107,8 +107,8 @@ options.timeout = 120
 options.subscribe = true
 
 SERVER = 'imap.gmail.com'
-USERNAME = 'calma.sandbox@gmail.com'
-PASSWORD = 'pujc jsmr ipln phnh'
+USERNAME = 'emial@gmail.com'
+PASSWORD = 'xxxx xxxx xxxx xxxx'
 
 account = IMAP {
     server = SERVER,
@@ -313,3 +313,4 @@ Por favor não roubes!
 - [Cuckoo Sandbox](https://cuckoosandbox.org/)
 - [VirusTotal](https://www.virustotal.com/)
 - [TheZoo](https://github.com/ytisf/theZoo)
+
