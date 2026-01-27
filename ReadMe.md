@@ -1,221 +1,315 @@
 # C.A.L.M.A - Classificador Automático de Links e Malware em Anexo
 # C.A.L.M.A - Containerized Automated Lazy Mail Anti-nasties
 
-Um sistema automatizado para análise de segurança de emails que verifica anexos em tempo real e os classifica como seguros ou maliciosos.
+O C.A.L.M.A é um sistema automatizado de análise de segurança de emails que integra com Cuckoo Sandbox para análise dinâmica de anexos. O sistema monitora emails recebidos, extrai anexos, envia para análise sandbox e classifica automaticamente os emails baseado nos resultados.
 
-## Requisitos do Sistema
+## Arquitetura
 
-- Ubuntu/Debian ou distribuição Linux similar
-- Acesso root/sudo
-- Conexão com internet
-- Conta de email com acesso IMAP habilitado
+```
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│   Email     │──▶│  Fetchmail  │──▶│   CALMA     │──▶│   Cuckoo    │
+│   Server    │    │             │    │   Script    │    │   Sandbox   │
+└─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘
+                                                                │
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐           │
+│   INFECTED  │◀──│ IMAPFilter  │◀──│   Results   │◀─────────┘
+│   Folder    │    │             │    │   Analysis  │
+└─────────────┘    └─────────────┘    └─────────────┘
+```
 
 ## Instalação
 
-### 1. Clonar ou baixar os arquivos
+### Pré-requisitos
+
+- Ubuntu 20.04 LTS ou superior
+- 8GB RAM mínimo (16GB recomendado)
+- 50GB espaço em disco
+- VirtualBox 6.1 ou superior
+- Acesso root/sudo
+
+### Passo 1: Clonar o Repositório
 
 ```bash
-# Make directory
-sudo mkdir -p /opt/calma
-cd /opt/calma
-
-sudo wget -O install_dependencies.sh https://raw.githubusercontent.com/0xadamastor/C.A.L.M.A./edit/xanax/install_dependencies.sh
-sudo wget -O calma.sh https://raw.githubusercontent.com/0xadamastor/C.A.L.M.A./edit/xanax/scripts/calma.sh
-sudo wget -O imapfilter_config.lua https://raw.githubusercontent.com/0xadamastor/C.A.L.M.A./edit/xanax/config/imapfilter_config.lua
-
-sudo chmod +x install_dependencies.sh calma.sh
+git clone https://github.com/0xadamastor/C.A.L.M.A.
+cd C.A.L.M.A.
 ```
 
-### 2. Executar instalação de dependências
+### Passo 2: Instalar Dependências
 
 ```bash
+chmod +x install_dependencies.sh
+
 sudo ./install_dependencies.sh
 ```
 
-Este script irá:
-- Atualizar o sistema
-- Instalar todas as dependências necessárias
-- Configurar diretórios do CALMA
-- Instalar ClamAV (antivírus para análise)
-
-### 3. Configurar estrutura de diretórios
+### Passo 3: Configurar VirtualBox
 
 ```bash
-sudo mkdir -p /opt/calma/{config,scripts,incoming,attachments,reports,quarantine,logs/{forensic,analysis,system}}
-sudo mkdir -p /opt/calma/attachments/clean
+sudo usermod -a -G vboxusers $USER
 
-sudo mv calma.sh /opt/calma/scripts/
-sudo mv imapfilter_config.lua /opt/calma/config/
+sudo setcap cap_net_raw,cap_net_admin=eip /usr/sbin/tcpdump
 
-sudo chmod 755 /opt/calma/scripts/calma.sh
-sudo chown -R $USER:$USER /opt/calma  # Ou o utilizador que executará o script
+sudo reboot
+```
+
+### Passo 4: Configurar Cuckoo Sandbox
+
+```bash
+cuckoo init
+
+cuckoo machine --add win7ultimate /opt/win7ultimate/win7ultimate.vbox
+
+cuckoo -d
+```
+
+### Passo 5: Verificar Instalação
+
+```bash
+curl http://localhost:8090
+
+VBoxManage list vms
+VBoxManage showvminfo win7ultimate
 ```
 
 ## Configuração
 
-### 1. Configurar Fetchmail (para download de emails)
+### 1. Configuração de Email
 
-Crie o arquivo `/opt/calma/config/fetchmailrc`:
-
+#### fetchmailrc
 ```bash
-nano /opt/calma/config/fetchmailrc
+sudo nano /opt/calma/config/fetchmailrc
 ```
 
-Adicione (substitua com suas credenciais):
-
-```
+```config
 poll imap.gmail.com
 protocol IMAP
 user "email@gmail.com"
-password "senha_da_app"
+password "xxxx xxxx xxxx xxxx"
 ssl
-fetchall
+sslproto TLS1.2
+sslcertck
 keep
-mda "/usr/bin/munpack -f -q -C /opt/calma/incoming"
+mda "/usr/bin/maildrop -d %T"
+limit 10485760
+fetchall
+no keep
 ```
 
-**Importante**: Para Gmail, você precisa:
-1. Ativar IMAP em: Configurações → Encaminhamento e POP/IMAP
-2. Criar uma "Senha de App": Google Account → Segurança → Senhas de App
+**Nota:** Para Gmail, use "Senha de App" não a senha normal.
 
-### 2. Configurar IMAPFilter (para mover emails)
-
-Edite o arquivo `/opt/calma/config/imapfilter_config.lua`:
-
+#### imapfilter_config.lua
 ```bash
-nano /opt/calma/config/imapfilter_config.lua
+sudo nano /opt/calma/config/imapfilter_config.lua
 ```
-
-Atualize com suas credenciais:
 
 ```lua
+options.timeout = 120
+options.subscribe = true
+
 SERVER = 'imap.gmail.com'
-USERNAME = 'email@gmail.com'
-PASSWORD = 'senha_de_app'
+USERNAME = 'calma.sandbox@gmail.com'
+PASSWORD = 'pujc jsmr ipln phnh'
+
+account = IMAP {
+    server = SERVER,
+    username = USERNAME,
+    password = PASSWORD,
+    ssl = 'auto',
+}
+
+inbox = account.INBOX
+
+account:create_mailbox('Infected')
+account:create_mailbox('Clean')
+
+infected_folder = account['Infected']
+clean_folder    = account['Clean']
+
+print('CALMA: IMAPFilter conectado ao Gmail com sucesso')
 ```
 
-### 3. Testar configurações
+### 2. Configurar Permissões
 
 ```bash
-fetchmail --fetchmailrc /opt/calma/config/fetchmailrc -v
+sudo chown -R $USER:$USER /opt/calma
+sudo chmod 600 /opt/calma/config/fetchmailrc
+sudo chmod 755 /opt/calma/scripts/*.sh
 
-imapfilter -c /opt/calma/config/imapfilter_config.lua
-
-/opt/calma/scripts/calma.sh
+sudo mkdir -p /var/log/cuckoo
+sudo chown $USER:$USER /var/log/cuckoo
 ```
 
-## ⏰ Configurar Cron Job (Execução Automática)
-
-### Opção 1: Para o utilizador atual
+### 3. Configurar Cuckoo
 
 ```bash
-crontab -e
+nano ~/.cuckoo/conf/cuckoo.conf
 ```
 
-Adicione a linha:
-
-```bash
-*/10 * * * * /opt/calma/scripts/calma.sh >> /opt/calma/logs/cron.log 2>&1
-
-0 * * * * /opt/calma/scripts/calma.sh >> /opt/calma/logs/cron.log 2>&1
+```ini
+[cuckoo]
+machinery = virtualbox
+analysis_timeout = 300
+memory_dump = no
+delete_original = no
 ```
 
-### Opção 2: Para todos os utilizadores (sistema)
-
 ```bash
-sudo nano /etc/cron.d/calma
+nano ~/.cuckoo/conf/virtualbox.conf
 ```
 
-Adicione:
-
-```bash
-*/5 * * * * root /opt/calma/scripts/calma.sh >> /opt/calma/logs/cron.log 2>&1
+```ini
+[virtualbox]
+machines = win7ultimate
+[win7ultimate]
+label = win7ultimate
+platform = windows
+ip = 192.168.56.101
+snapshot = clean
 ```
 
-## Testar o Sistema
-Teste 1: Enviar arquivo "limpo"
+### 4. Configurar CRON Job
 
 ```bash
-echo "Este é um documento seguro" > /tmp/teste_limpo.txt
+chmod +x /opt/calma/scripts/calma_cron.sh
+/opt/calma/scripts/calma_cron.sh
 
-echo "Teste CALMA - Arquivo limpo" | mail -s "Teste Limpo" \
-    -a /tmp/teste_limpo.txt seu_email_analise@gmail.com
-```
-Teste 2: Enviar arquivo "suspeito"
-
-```bash
-
-# Criar arquivo com strings suspeitas
-echo -e "Conteúdo normal\nexecute exploit\nmalware signature\n" > /tmp/teste_suspeito.exe
-
-echo "Teste CALMA - Arquivo suspeito" | mail -s "Teste Suspeito" \
-    -a /tmp/teste_suspeito.exe seu_email_analise@gmail.com
+crontab -l
 ```
 
-### 2. Verificar logs
+## Uso
+
+### Iniciar Manualmente
 
 ```bash
+cuckoo -d
+
+/opt/calma/scripts/calma_cuckoo.sh
+
 tail -f /opt/calma/logs/system/calma_system.log
-
-# Logs forenses
-cat /opt/calma/logs/forensic/calma_forensic.csv
-
-# Log do cron
-cat /opt/calma/logs/cron.log
+tail -f /var/log/cuckoo/cuckoo.log
 ```
 
-### 3. Verificar resultados
+### Verificar Status
 
 ```bash
-ls -la /opt/calma/quarantine/
+curl -s http://localhost:8090/tasks/list | jq .
 
-# Verificar arquivos limpos
-ls -la /opt/calma/attachments/clean/
+ps aux | grep cuckoo
+ps aux | grep virtualbox
 
-# Verificar relatórios
-ls -la /opt/calma/reports/
+ls -la /opt/calma/incoming/
+cat /opt/calma/logs/forensic/calma_forensic.csv
 ```
 
-## Estrutura de Arquivos
+### Testar o Sistema
+
+#### Teste 1: Enviar Email de Teste
+```bash
+echo "Teste CALMA" | mail -s "Teste Limpo" -A /etc/hosts seu.email@gmail.com
+
+echo 'X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*' > eicar.txt
+echo "Teste CALMA" | mail -s "Teste EICAR" -A eicar.txt seu.email@gmail.com
+```
+
+#### Teste 2: Verificar Processamento
+```bash
+/opt/calma/scripts/calma_cuckoo.sh
+
+ls -la /opt/calma/sandbox/malicious/
+ls -la /opt/calma/sandbox/clean/
+```
+
+## Estrutura de Diretórios
 
 ```
 /opt/calma/
-├── config/
-│   ├── fetchmailrc              # Configuração do Fetchmail
-│   └── imapfilter_config.lua    # Configuração do IMAPFilter
-├── scripts/
-│   └── calma.sh                 # Script principal
-├── incoming/                    # Emails baixados (temporário)
-├── attachments/                 # Anexos extraídos
-│   └── clean/                  # Arquivos classificados como seguros
-├── quarantine/                  # Arquivos maliciosos
-├── reports/                     # Relatórios de análise (futuro)
-└── logs/
-    ├── system/                  # Logs do sistema (calma_system.log)
-    ├── forensic/                # Logs forenses (calma_forensic.csv)
-    └── analysis/                # Logs detalhados de análise
+├── config/                          # Configurações
+│   ├── fetchmailrc                 # Config email (entrada)
+│   └── imapfilter_config.lua       # Config email (saída)
+├── scripts/                        # Scripts do sistema
+│   ├── calma_cuckoo.sh            # Script principal
+│   ├── install_dependencies_cuckoo.sh
+│   └── calma_cron.sh
+├── incoming/                       # Emails baixados
+├── attachments/                    # Anexos extraídos
+├── sandbox/                        # Integração Cuckoo
+│   ├── pending/                   # Aguardando análise
+│   ├── processing/                # Em análise
+│   ├── completed/                 # Análise concluída
+│   ├── malicious/                 # Arquivos maliciosos
+│   └── clean/                     # Arquivos limpos
+├── reports/                       # Relatórios Cuckoo
+├── quarantine/                    # Arquivos em quarentena
+└── logs/                          # Logs do sistema
+    ├── forensic/                  # Logs forenses (CSV)
+    ├── analysis/                  # Logs de análise
+    └── system/                    # Logs do sistema
 ```
 
 ## Segurança
 
-1. **Credenciais**: Mantenha os arquivos de configuração com permissões restritas:
-   ```bash
-   chmod 600 /opt/calma/config/fetchmailrc
-   chmod 600 /opt/calma/config/imapfilter_config.lua
-   ```
+### Recomendações
+1. **Isolamento**: Execute em rede isolada
+2. **Firewall**: Restrinja acesso à API Cuckoo (porta 8090)
+3. **Logs**: Monitore logs regularmente
+4. **Updates**: Mantenha Cuckoo e dependências atualizadas
+5. **Quarentena**: Revise periodicamente arquivos em quarentena
+
+### Configurações de Segurança
+```bash
+# Restringir acesso à API Cuckoo
+sudo ufw deny 8090
+# OU permitir apenas localhost
+sudo ufw allow from 127.0.0.1 to any port 8090
+
+# Configurar logrotate
+sudo nano /etc/logrotate.d/calma
+```
+
+```config
+/opt/calma/logs/system/*.log {
+    daily
+    rotate 30
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 644 root root
+}
+```
+
+## Monitoramento
+
+### Scripts Úteis
+
+#### monitor_calma.sh
+```bash
+#!/bin/bash
+echo "=== STATUS CALMA ==="
+echo "Cuckoo API: $(curl -s http://localhost:8090 -o /dev/null -w '%{http_code}')"
+echo "Emails aguardando: $(ls -1 /opt/calma/incoming/*.email 2>/dev/null | wc -l)"
+echo "Arquivos em análise: $(ls -1 /opt/calma/sandbox/processing/ 2>/dev/null | wc -l)"
+echo "Total maliciosos: $(ls -1 /opt/calma/sandbox/malicious/ 2>/dev/null | wc -l)"
+echo "Último processamento: $(tail -1 /opt/calma/logs/system/calma_system.log 2>/dev/null)"
+```
+
+#### backup_calma.sh
+```bash
+#!/bin/bash
+BACKUP_DIR="/backup/calma_$(date +%Y%m%d)"
+mkdir -p $BACKUP_DIR
+cp -r /opt/calma/logs $BACKUP_DIR/
+cp -r /opt/calma/reports $BACKUP_DIR/
+mysqldump -u cuckoo -p cuckoo > $BACKUP_DIR/cuckoo_db.sql
+tar -czf $BACKUP_DIR.tar.gz $BACKUP_DIR
+```
 
 ## Licença
 
 Por favor não roubes!
 
-## Contribuição
+## Agradecimentos
 
-Para reportar bugs ou sugerir melhorias:
-1. Verifique os logs em `/opt/calma/logs/`
-2. Documente os passos para reproduzir o problema
-3. Inclua trechos relevantes dos logs
-
-
-
-
-
+- [Cuckoo Sandbox](https://cuckoosandbox.org/)
+- [VirusTotal](https://www.virustotal.com/)
+- [TheZoo](https://github.com/ytisf/theZoo)
