@@ -10,8 +10,10 @@ INCOMING_DIR="${CALMA_HOME}/incoming"
 ATTACHMENTS_DIR="${CALMA_HOME}/attachments"
 REPORTS_DIR="${CALMA_HOME}/reports"
 QUARANTINE_DIR="${CALMA_HOME}/quarantine"
+SANDBOX_DIR="${CALMA_HOME}/sandbox"
 FORENSIC_LOG="${LOG_DIR}/forensic/calma_forensic.csv"
-DB_FILE="${CALMA_HOME}/calma.db"
+CUCKOO_API="http://localhost:8090"
+CUCKOO_CONF="/root/.cuckoo/conf/cuckoo.conf"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -27,26 +29,135 @@ log_message() {
     echo "[${timestamp}] [${level}] ${message}" >> "${LOG_DIR}/system/calma_system.log"
 }
 
-fetch_new_emails() {
-    log_message "INFO" "Verificando novos emails..."
-
-    local fetchmail_conf="${CALMA_HOME}/config/fetchmailrc"
-
-    if [ ! -f "$fetchmail_conf" ]; then
-        log_message "ERROR" "Arquivo fetchmailrc não encontrado!"
+check_cuckoo_status() {
+    if curl -s "${CUCKOO_API}/tasks/list" > /dev/null 2>&1; then
+        log_message "INFO" "Cuckoo Sandbox API está ativa"
+        return 0
+    else
+        log_message "ERROR" "Cuckoo Sandbox não está respondendo"
         return 1
     fi
-
-    # Baixar apenas emails não lidos (--nokeep para remover após download)
-    fetchmail --fetchmailrc "$fetchmail_conf" --nokeep --silent
-
-    local new_emails=$(ls -1 "$INCOMING_DIR"/*.email 2>/dev/null | wc -l)
-    log_message "INFO" "Baixados ${new_emails} novos emails"
-
-    return $new_emails
 }
 
-# Extrair Message-ID do email
+start_cuckoo() {
+    if ! check_cuckoo_status; then
+        log_message "INFO" "Iniciando Cuckoo Sandbox..."
+        nohup cuckoo -d > /var/log/cuckoo/startup.log 2>&1 &
+        sleep 10
+
+        local max_attempts=30
+        local attempt=1
+
+        while [ $attempt -le $max_attempts ]; do
+            if check_cuckoo_status; then
+                log_message "SUCCESS" "Cuckoo Sandbox iniciado com sucesso"
+                return 0
+            fi
+            sleep 2
+            ((attempt++))
+        done
+
+        log_message "ERROR" "Falha ao iniciar Cuckoo Sandbox"
+        return 1
+    fi
+    return 0
+}
+
+submit_to_cuckoo() {
+    local file_path=$1
+    local file_name=$(basename "$file_path")
+    local task_id=""
+
+    log_message "INFO" "Enviando para Cuckoo Sandbox: $file_name"
+
+    # Copiar arquivo para diretório de processamento
+    local sandbox_file="${SANDBOX_DIR}/processing/${file_name}"
+    cp "$file_path" "$sandbox_file"
+
+    # Enviar via API do Cuckoo
+    local response=$(curl -s -F "file=@${sandbox_file}" "${CUCKOO_API}/tasks/create/file")
+    task_id=$(echo "$response" | jq -r '.task_id' 2>/dev/null)
+
+    if [ -n "$task_id" ] && [ "$task_id" != "null" ]; then
+        log_message "INFO" "Tarefa Cuckoo criada: ID $task_id para $file_name"
+        echo "$task_id"
+    else
+        log_message "ERROR" "Falha ao enviar para Cuckoo: $file_name"
+        echo ""
+    fi
+}
+
+wait_for_cuckoo_result() {
+    local task_id=$1
+    local max_wait=300
+    local wait_time=0
+
+    log_message "INFO" "Aguardando análise Cuckoo (Task ID: $task_id)"
+
+    while [ $wait_time -lt $max_wait ]; do
+        local status=$(curl -s "${CUCKOO_API}/tasks/view/$task_id" | jq -r '.task.status' 2>/dev/null)
+
+        case $status in
+            "reported")
+                log_message "INFO" "Análise Cuckoo concluída para task $task_id"
+                return 0
+                ;;
+            "processing"|"running")
+                sleep 10
+                wait_time=$((wait_time + 10))
+                ;;
+            "failed"|"error")
+                log_message "ERROR" "Análise Cuckoo falhou para task $task_id"
+                return 1
+                ;;
+        esac
+    done
+
+    log_message "WARNING" "Timeout na análise Cuckoo para task $task_id"
+    return 2
+}
+
+get_cuckoo_result() {
+    local task_id=$1
+    local file_name=$2
+    local score=0
+    local classification="CLEAN"
+
+    log_message "INFO" "Obtendo resultado Cuckoo para task $task_id"
+
+    local report=$(curl -s "${CUCKOO_API}/tasks/report/$task_id/summary")
+
+    local malware_score=$(echo "$report" | jq -r '.malware_score // 0' 2>/dev/null)
+
+    score=$(echo "$malware_score * 10" | bc | cut -d. -f1)
+
+    local signatures=$(echo "$report" | jq -r '.signatures[].name' 2>/dev/null | head -5)
+    local detections_count=$(echo "$report" | jq -r '.signatures | length' 2>/dev/null)
+
+    if [ $detections_count -gt 0 ]; then
+        classification="INFECTED"
+        score=$((score + 50))
+
+        log_message "ALERT" "Cuckoo detectou $detections_count assinaturas de malware"
+        echo "$signatures" | while read sig; do
+            [ -n "$sig" ] && log_message "DETAIL" "Assinatura: $sig"
+        done
+    fi
+
+    local suspicious=$(echo "$report" | jq -r '.behavior.summary | length' 2>/dev/null)
+    if [ $suspicious -gt 3 ]; then
+        score=$((score + 20))
+        log_message "WARNING" "Comportamento suspeito detectado: $suspicious ações"
+    fi
+
+    [ $score -gt 100 ] && score=100
+
+    local report_file="${REPORTS_DIR}/cuckoo_${task_id}_${file_name}.json"
+    curl -s "${CUCKOO_API}/tasks/report/$task_id" -o "$report_file" 2>/dev/null
+
+    echo "$score|$classification|$report_file"
+}
+
 extract_message_info() {
     local email_file=$1
     local message_id=""
@@ -88,65 +199,6 @@ extract_attachments() {
     fi
 }
 
-analyze_file() {
-    local file_path=$1
-    local file_name=$(basename "$file_path")
-    local score=0
-
-    log_message "INFO" "Analisando: $file_name"
-
-    local file_type=$(file -b "$file_path")
-    log_message "DEBUG" "Tipo: $file_type"
-
-    local extension="${file_name##*.}"
-    local ext_lower=$(echo "$extension" | tr '[:upper:]' '[:lower:]')
-
-    case "$ext_lower" in
-        exe|dll|vbs|js|bat|ps1|scr|jar|wsf|hta)
-            score=$((score + 40))
-            log_message "WARNING" "Extensão potencialmente perigosa: .$ext_lower"
-            ;;
-        pdf|doc|docx|xls|xlsx|ppt|pptx|rtf)
-            score=$((score + 20))
-            log_message "INFO" "Documento Office/PDF: .$ext_lower"
-            ;;
-        zip|rar|7z|tar|gz)
-            score=$((score + 10))
-            log_message "INFO" "Arquivo compactado: .$ext_lower"
-            ;;
-    esac
-
-    if command -v clamscan &> /dev/null; then
-        local clam_result=$(clamscan --no-summary "$file_path" 2>/dev/null)
-        if echo "$clam_result" | grep -q "FOUND"; then
-            score=$((score + 60))
-            local virus_name=$(echo "$clam_result" | grep -o "FOUND" | head -1)
-            log_message "ALERT" "ClamAV detectou: $virus_name"
-        fi
-    fi
-
-    if command -v strings &> /dev/null && [ $score -lt 80 ]; then
-        local sus_strings=$(strings "$file_path" | grep -i -c -E \
-            "(malware|virus|trojan|exploit|shellcode|keylogger|ransomware|backdoor)")
-
-        if [ $sus_strings -gt 0 ]; then
-            score=$((score + sus_strings * 5))
-            log_message "WARNING" "Encontradas $sus_strings strings suspeitas"
-        fi
-    fi
-
-    local file_size=$(stat -c%s "$file_path" 2>/dev/null || echo "0")
-
-    if [ $file_size -lt 100 ] || [ $file_size -gt 10485760 ]; then
-        score=$((score + 10))
-        log_message "INFO" "Tamanho atípico: ${file_size} bytes"
-    fi
-
-    [ $score -gt 100 ] && score=100
-
-    echo $score
-}
-
 move_email() {
     local message_id=$1
     local classification=$2
@@ -165,13 +217,13 @@ if #results > 0 then
     -- Marcar como lido
     inbox:mark_flagged(results)
 
-    -- Mover para pasta apropriada
+    -- Mover para pasta apropriada baseada no resultado Cuckoo
     if '${classification}' == 'INFECTED' then
         results:move_messages(infected_folder)
-        print("SUCCESS: Email movido para Infected - ${subject}")
+        print("SUCCESS: Email movido para INFECTED - ${subject}")
     else
         results:move_messages(clean_folder)
-        print("SUCCESS: Email movido para Clean - ${subject}")
+        print("SUCCESS: Email movido para CLEAN - ${subject}")
     end
 else
     print("ERROR: Email não encontrado - Message-ID: ${message_id}")
@@ -213,7 +265,8 @@ process_email() {
     fi
 
     local max_score=0
-    local classification="CLEAN"
+    local overall_classification="CLEAN"
+    local cuckoo_tasks=""
 
     find "$attachments_dir" -type f | while read -r attachment; do
         local file_name=$(basename "$attachment")
@@ -224,65 +277,177 @@ process_email() {
             continue
         fi
 
-        local score=$(analyze_file "$attachment")
+        local task_id=$(submit_to_cuckoo "$attachment")
 
-        [ $score -gt $max_score ] && max_score=$score
+        if [ -n "$task_id" ]; then
+            cuckoo_tasks="$cuckoo_tasks $task_id:$file_name"
 
-        if [ $score -ge 40 ]; then
-            classification="INFECTED"
-
-            local quarantine_file="${QUARANTINE_DIR}/${file_hash}_${file_name}"
-            mv "$attachment" "$quarantine_file"
-            log_message "ALERT" "ARQUIVO MALICIOSO: $file_name (Score: $score) -> Quarentena"
+            local processing_file="${SANDBOX_DIR}/processing/${file_hash}_${file_name}"
+            mv "$attachment" "$processing_file"
         else
-            local clean_file="${ATTACHMENTS_DIR}/clean/${file_hash}_${file_name}"
-            mv "$attachment" "$clean_file"
-            log_message "INFO" "Arquivo limpo: $file_name (Score: $score)"
+            log_message "WARNING" "Usando análise estática como fallback para $file_name"
+            local score=$(analyze_file_static "$processing_file")
+            local classification="CLEAN"
+
+            if [ $score -ge 40 ]; then
+                classification="INFECTED"
+            fi
+
+            record_analysis_result "$file_name" "$file_hash" "$score" "$classification" \
+                "$message_id" "$subject" "$from"
         fi
+    done
 
-        local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-        [ ! -f "$FORENSIC_LOG" ] && \
-            echo "timestamp,filename,sha256,score,classification,message_id,subject,from" > "$FORENSIC_LOG"
+    for task_info in $cuckoo_tasks; do
+        local task_id=$(echo "$task_info" | cut -d':' -f1)
+        local file_name=$(echo "$task_info" | cut -d':' -f2)
+        local file_hash=$(sha256sum "${SANDBOX_DIR}/processing/"*"${file_name}" 2>/dev/null | awk '{print $1}')
 
-        echo "${timestamp},${file_name},${file_hash},${score},${classification},${message_id},${subject},${from}" \
-            >> "$FORENSIC_LOG"
+        if wait_for_cuckoo_result "$task_id"; then
+            local result=$(get_cuckoo_result "$task_id" "$file_name")
+            local score=$(echo "$result" | cut -d'|' -f1)
+            local classification=$(echo "$result" | cut -d'|' -f2)
+            local report_file=$(echo "$result" | cut -d'|' -f3)
+
+            if [ "$classification" = "INFECTED" ]; then
+                overall_classification="INFECTED"
+            fi
+
+            [ $score -gt $max_score ] && max_score=$score
+
+            if [ "$classification" = "INFECTED" ]; then
+                local malicious_file="${SANDBOX_DIR}/malicious/${file_hash}_${file_name}"
+                mv "${SANDBOX_DIR}/processing/"*"${file_name}" "$malicious_file"
+                log_message "ALERT" "MALICIOSO: $file_name (Score: $score) -> Quarentena"
+            else
+                local clean_file="${SANDBOX_DIR}/clean/${file_hash}_${file_name}"
+                mv "${SANDBOX_DIR}/processing/"*"${file_name}" "$clean_file"
+                log_message "INFO" "Limpo: $file_name (Score: $score)"
+            fi
+
+            record_analysis_result "$file_name" "$file_hash" "$score" "$classification" \
+                "$message_id" "$subject" "$from" "$report_file"
+        fi
     done
 
     rmdir "$attachments_dir" 2>/dev/null
+    find "${SANDBOX_DIR}/processing" -type f -mtime +1 -delete 2>/dev/null
 
-    move_email "$message_id" "$classification" "$subject"
+    move_email "$message_id" "$overall_classification" "$subject"
 
     rm -f "$email_file"
 
     log_message "SUCCESS" "Email processado: $subject (Score máximo: $max_score)"
 }
 
-main() {
-    log_message "INFO" "=== CALMA INICIADO ==="
-    log_message "INFO" "Monitorando emails para análise..."
+analyze_file_static() {
+    local file_path=$1
+    local file_name=$(basename "$file_path")
+    local score=0
 
-    mkdir -p "${INCOMING_DIR}" "${ATTACHMENTS_DIR}" "${ATTACHMENTS_DIR}/clean"
+    local file_type=$(file -b "$file_path")
+
+    local extension="${file_name##*.}"
+    local ext_lower=$(echo "$extension" | tr '[:upper:]' '[:lower:]')
+
+    case "$ext_lower" in
+        exe|dll|vbs|js|bat|ps1|scr|jar|wsf|hta)
+            score=$((score + 40))
+            ;;
+        pdf|doc|docx|xls|xlsx|ppt|pptx|rtf)
+            score=$((score + 20))
+            ;;
+    esac
+
+    if command -v clamscan &> /dev/null; then
+        if clamscan --no-summary "$file_path" 2>/dev/null | grep -q "FOUND"; then
+            score=$((score + 60))
+        fi
+    fi
+
+    echo $score
+}
+
+record_analysis_result() {
+    local file_name=$1
+    local file_hash=$2
+    local score=$3
+    local classification=$4
+    local message_id=$5
+    local subject=$6
+    local from=$7
+    local report_file=$8
+
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+
+    [ ! -f "$FORENSIC_LOG" ] && \
+        echo "timestamp,filename,sha256,score,classification,message_id,subject,from,report_file" > "$FORENSIC_LOG"
+
+    echo "${timestamp},${file_name},${file_hash},${score},${classification},${message_id},${subject},${from},${report_file}" \
+        >> "$FORENSIC_LOG"
+}
+
+main() {
+    log_message "INFO" "=== CALMA COM CUCKOO INICIADO ==="
+
+    mkdir -p "${INCOMING_DIR}" "${ATTACHMENTS_DIR}" "${SANDBOX_DIR}"
+    mkdir -p "${SANDBOX_DIR}/"{pending,processing,completed,malicious,clean}
     mkdir -p "${REPORTS_DIR}" "${QUARANTINE_DIR}"
     mkdir -p "${LOG_DIR}/forensic" "${LOG_DIR}/analysis" "${LOG_DIR}/system"
 
-    fetch_new_emails
-    local new_count=$?
+    if ! start_cuckoo; then
+        log_message "ERROR" "Não foi possível iniciar Cuckoo Sandbox"
+        exit 1
+    fi
 
-    if [ $new_count -eq 0 ]; then
-        log_message "INFO" "Nenhum novo email encontrado"
-    else
-        log_message "INFO" "Processando $new_count novos emails"
+    log_message "INFO" "Verificando novos emails..."
+
+    local fetchmail_conf="${CALMA_HOME}/config/fetchmailrc"
+    if [ -f "$fetchmail_conf" ]; then
+        fetchmail --fetchmailrc "$fetchmail_conf" --nokeep --silent
+        local new_emails=$(ls -1 "$INCOMING_DIR"/*.email 2>/dev/null | wc -l)
+        log_message "INFO" "Baixados ${new_emails} novos emails"
 
         for email_file in "$INCOMING_DIR"/*.email; do
             [ -f "$email_file" ] || continue
             process_email "$email_file"
         done
+    else
+        log_message "ERROR" "Arquivo fetchmailrc não encontrado!"
     fi
 
     find "$INCOMING_DIR" -type f -mtime +1 -delete 2>/dev/null
     find "/tmp" -name "calma_*" -mtime +1 -delete 2>/dev/null
 
-    log_message "INFO" "=== CALMA FINALIZADO ==="
+    log_message "INFO" "=== CALMA COM CUCKOO FINALIZADO ==="
 }
+
+cat > /opt/calma/config/imapfilter_config.lua << 'EOF'
+-- Configuração IMAPFilter para CALMA
+options.timeout = 120
+options.subscribe = true
+
+-- Contas IMAP
+GMAIL_ACCOUNT = IMAP {
+    server = 'imap.gmail.com',
+    username = 'seu_email@gmail.com',
+    password = 'sua_senha_app',
+    ssl = 'ssl3',
+}
+
+-- Pastas
+inbox = GMAIL_ACCOUNT['INBOX']
+infected_folder = GMAIL_ACCOUNT['CALMA_INFECTED'] or GMAIL_ACCOUNT:create_mailbox('CALMA_INFECTED')
+clean_folder = GMAIL_ACCOUNT['CALMA_CLEAN'] or GMAIL_ACCOUNT:create_mailbox('CALMA_CLEAN')
+
+-- Mover emails processados
+function move_processed_emails()
+    local results = inbox:is_unseen()
+    if #results > 0 then
+        -- Os emails serão movidos pelo script CALMA baseado no resultado Cuckoo
+        -- Esta função é mantida para compatibilidade
+    end
+end
+EOF
 
 main "$@"
