@@ -3,28 +3,22 @@ options.subscribe = true
 
 SERVER = 'imap.gmail.com'
 USERNAME = 'email@gmail.com'
-PASSWORD = 'senha'
+PASSWORD = 'xxxx xxxx xxxx xxxx'
 
 account = IMAP {
     server = SERVER,
     username = USERNAME,
     password = PASSWORD,
-    ssl = 'tls1',
-    port = 993,
+    ssl = 'auto',
 }
 
-inbox = account['INBOX']
+inbox = account.INBOX
+
+-- Garantir que as labels existem no Gmail
+account:create_mailbox('Infected')
+account:create_mailbox('Clean')
 
 infected_folder = account['Infected']
-if infected_folder == nil then
-    infected_folder = account:create_mailbox('Infected')
-    print('CALMA: Pasta Infected criada')
-    end
+clean_folder    = account['Clean']
 
-    clean_folder = account['Clean']
-    if clean_folder == nil then
-        clean_folder = account:create_mailbox('Clean')
-        print('CALMA: Pasta Clean criada')
-        end
-
-        print('CALMA: Configuração IMAPFilter carregada')
+print('CALMA: IMAPFilter conectado ao Gmail com sucesso')
