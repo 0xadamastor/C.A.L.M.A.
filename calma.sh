@@ -1,7 +1,7 @@
 #!/bin/bash
 
-EMAIL_USER="calma.sandbox@gmail.com"
-EMAIL_PASS="pujc jsmr ipln phnh"
+EMAIL_USER="email@gmail.com"
+EMAIL_PASS="xxxx xxxx xxxx xxxx"
 EMAIL_SERVER="imap.gmail.com"
 EMAIL_PORT="993"
 
