@@ -4,7 +4,6 @@
 
 ## What Can This Beast Do?
 
-[AUTO-PILOT MODE]
 - **Automatic Email Hunting**: Crawls through your inbox like it owns the place, looking for attachments
 - **File Extraction Wizardry**: Pulls attachments out of emails and lines them up for inspection
 - **The Verdict Chamber**: Judges each file and assigns it one of three destinies:
