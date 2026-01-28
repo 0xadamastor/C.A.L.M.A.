@@ -2,8 +2,42 @@
 
 **CALMA** is your paranoid email security guard. It automatically extracts, analyzes, and categorizes email attachments with the enthusiasm of a postal worker who's *really* concerned about what's in those packages. No more wondering if that "invoice.exe" from your "boss" is actually what it claims to be.
 
+## Quick Start - Instalação em 30 Segundos
+
+The beautiful part about CALMA's installer is that it works everywhere. No more "it doesn't work on my machine" excuses.
+
+### No Linux ou macOS (Pick One):
+```bash
+cd calma
+./install.sh
+```
+
+### No Windows:
+```bash
+cd calma
+install.bat
+```
+
+Or if you want to be fancy (works on any OS):
+```bash
+python3 install.py
+```
+
+**O instalador vai fazer o trabalho chato por você:**
+- Verifica se tens Python 3.8+ instalado (senão, reclama muito)
+- Cria um ambiente virtual chamado `venv` (para não estragar o teu sistema)
+- Instala todas as dependências do requirements.txt
+- Cria a estrutura de pastas necessária
+- Verifica que tudo funcionou (spoiler: funciona)
+- Mostra instruções de como executar CALMA
+
+Basicamente, é como um eletricista que vem à tua casa, faz tudo, e depois te deixa um manual com a factura. Mas grátis.
+
+---
+
 ## What Can This Beast Do?
 
+[AUTO-PILOT MODE]
 - **Automatic Email Hunting**: Crawls through your inbox like it owns the place, looking for attachments
 - **File Extraction Wizardry**: Pulls attachments out of emails and lines them up for inspection
 - **The Verdict Chamber**: Judges each file and assigns it one of three destinies:
@@ -18,31 +52,47 @@
 
 ## What You'll Need (The Boring Part)
 
-- **OS**: Something Unix-like (Linux, macOS running on borrowed time, etc.)
-- **Bash**: Version 4.0+ (shouldn't be too hard to find)
-- **Python**: 3.6 or newer (it's 2026, get with the times)
-- **Gmail Account**: With IMAP turned on (your security team won't bite... much)
-- **Internet**: For talking to Gmail's servers (they're surprisingly chatty)
+- **OS**: Windows, macOS, Linux - qualquer um funciona (finalmente, igualdade!)
+- **Python**: 3.8 ou mais recente (o instalador verifica por ti)
+- **Interpretador de Bash** (para os scripts manuais, opcional se usares a web UI)
+- **Internet**: Para falar com o Gmail ou analisar ficheiros online
 
 ## Let's Get This Thing Running
 
-### Step 1: Get the Files
+### Step 1: Executar o Instalador (Mesmo isto é Fácil)
 
 ```bash
 cd ~
 git clone <repository-url> calma
 cd calma
+python3 install.py
 ```
 
-Or if you've already got the files sitting around:
+E pronto. O instalador faz tudo. Podes ir fazer café.
+
+### Step 2: Ativar o Ambiente Virtual
 
 ```bash
-cd /path/to/calma
+# Linux ou macOS
+source venv/bin/activate
+
+# Windows
+venv\Scripts\activate
 ```
 
-### Step 2: Create the Gmail Labels (The Official Part)
+### Step 3: Executar CALMA
 
-CALMA needs three labels to exist in your Gmail account. Think of it as setting up the filing cabinet before the paperwork arrives.
+```bash
+python3 app.py
+```
+
+Acede a http://localhost:5000 e começa a usar. Feliz?
+
+## Configuração Avançada (Opcional)
+
+Se quiseres usar as funcionalidades de email automático:
+
+### Create the Gmail Labels (The Official Part)
 
 1. Visit [Gmail Settings](https://mail.google.com/mail/u/0/#settings)
 2. Smash that "Labels" tab
@@ -100,125 +150,159 @@ chmod +x calma.sh labels.sh config.sh
 
 ## Time to Actually Run This Thing
 
-### The Manual Way
+### Com o Ambiente Virtual Ativado
+
+Depois que o instalador termina, tens um ambiente virtual isolado chamado `venv`. Para ativar:
+
+**No Linux ou macOS:**
+```bash
+source venv/bin/activate
+python3 app.py
+```
+
+**No Windows:**
+```bash
+venv\Scripts\activate
+python app.py
+```
+
+E pronto - CALMA está rodando em http://localhost:5000
+
+### A Interface Web
+
+Sim, CALMA tem interface web. Não é preciso correr scripts de terminal feito um hacker dos anos 90 (embora seja cool). A web UI é mais bonita, mais intuitiva, e não faz parecer que estás a desatualizar código espaço:
+
+- Upload de ficheiros para análise
+- Histórico de análises
+- Estatísticas e relatórios
+- Logs em tempo real
+- Configuração através da UI
+
+### Scripts Manuais (Para os Nostálgicos)
+
+Se preferires a velha escola, ainda tens os scripts bash:
 
 ```bash
 ./calma.sh
 ```
 
-CALMA will then:
+CALMA vai então:
 
-1. Double-check that Gmail labels exist (paranoia level: healthy)
-2. Create folder structure if it doesn't exist
-3. Ransack your inbox for unread emails with attachments
-4. Extract and analyze each file with intensity
-5. Assign each file to its destiny (Clean, Suspicious, or Infected)
-6. Move the original emails into the right Gmail labels
-7. File things away in the correct folders
-8. Generate a fancy report (for your ego)
-9. Delete old logs to free up space
+1. Verificar se as labels do Gmail existem (paranoia em nível saudável)
+2. Criar a estrutura de pastas se não existir
+3. Procurar emails não lidos com anexos
+4. Extrair e analisar cada ficheiro com intensidade
+5. Atribuir a cada ficheiro o seu destino (Limpo, Suspeito, ou Infetado)
+6. Mover os emails para as labels certas do Gmail
+7. Guardar tudo nos sítios corretos
+8. Gerar um bonito relatório
+9. Apagar logs antigos antes que o disco expluda
 
-### The Automated Way (Cron Jobs)
+### Automação com Cron (O Jeito Preguiçoso)
 
-Want CALMA to run itself like a vigilant security daemon? Use cron:
+Quer deixar CALMA a funcionar sozinho tipo um daemon paranóico? Usa cron:
 
-#### Every Hour (The Constant Watcher)
+#### Cada Hora (O Vigia Constante)
 
 ```bash
 crontab -e
 ```
 
-Add:
+Adiciona:
 ```cron
-0 * * * * /home/username/calma/calma.sh >> /home/username/calma/logs/cron.log 2>&1
+0 * * * * /home/username/calma/venv/bin/python /home/username/calma/app.py >> /home/username/calma/logs/cron.log 2>&1
 ```
 
-#### Every 30 Minutes (The Paranoid Option)
+#### Cada 30 Minutos (A Opção Paranoica)
 
 ```cron
-*/30 * * * * /home/username/calma/calma.sh >> /home/username/calma/logs/cron.log 2>&1
+*/30 * * * * /home/username/calma/venv/bin/python /home/username/calma/app.py >> /home/username/calma/logs/cron.log 2>&1
 ```
 
-#### Every 10 Minutes (This is Overkill but Sure)
+#### Cada 10 Minutos (Isto é Exagero Mas Tudo Bem)
 
 ```cron
-*/10 * * * * /home/username/calma/calma.sh >> /home/username/calma/logs/cron.log 2>&1
+*/10 * * * * /home/username/calma/venv/bin/python /home/username/calma/app.py >> /home/username/calma/logs/cron.log 2>&1
 ```
 
-Or just run the helper script:
+Ou simplesmente executa o script helper:
 
 ```bash
 chmod +x configurar_cron.sh
 ./configurar_cron.sh
 ```
 
-## The File Organization Scheme
+## Estrutura do Projeto
 
 ```
 calma/
-├── calma.sh                      # The Main Guy - runs the whole show
-├── labels.sh                     # Creates Gmail labels (boring but necessary)
-├── config.sh                     # Configuration helper (for the lazy)
-├── configurar_cron.sh            # Sets up automatic running
-├── README.md                     # This very document you're reading
-├── logs/                         # Where CALMA keeps its diary
-│   ├── execucao_*.log           # What happened this time
-│   ├── relatorio_*.txt          # Pretty human-readable reports
-│   └── email_map_*.txt          # Map of files to their original emails
-└── dados/                        # Your processed files live here
-    ├── anexos_processados/       # Extraction zone
-    │   ├── a_analisar/          # "I haven't looked at this yet" folder
-    │   ├── limpos/              # "This is boring and safe"
-    │   └── infetados/           # "Burn it with fire"
-    └── quarentena/              # The jail for suspicious stuff
+├── install.py                    # Instalador cross-platform (executa em qualquer SO)
+├── install.sh                    # Script wrapper para Linux/macOS
+├── install.bat                   # Script wrapper para Windows
+├── app.py                        # API Python e interface web
+├── requirements.txt              # Dependências Python (atualizado para compatibilidade)
+├── venv/                         # Ambiente virtual (criado pelo instalador)
+├── calma.sh                      # Script de análise de email (opcional)
+├── labels.sh                     # Cria labels no Gmail (opcional)
+├── config.sh                     # Helper de configuração (opcional)
+├── README.md                     # Este documento
+├── logs/                         # Histórico de execuções
+├── dados/                        # Ficheiros processados
+│   ├── anexos_processados/
+│   │   ├── a_analisar/
+│   │   ├── limpos/
+│   │   ├── suspeitos/
+│   │   └── infetados/
+│   └── quarentena/
+└── templates/                    # Templates HTML para a web UI
 ```
 
-## The Judgment System (How CALMA Decides Your File's Fate)
+## O Sistema de Julgamento (Como CALMA Decide o Destino do Teu Ficheiro)
 
-Think of CALMA as a bouncer at an exclusive club, but the club is your computer and the bouncers judge based on file type and sketchy behavior.
+CALMA é como um porteiro de discoteca, mas da tua máquina. Julga ficheiros baseado no tipo e comportamento suspeito.
 
 ```
-SCORE RANGE    │ VERDICT     │ WHAT HAPPENS
-───────────────┼─────────────┼──────────────────────────────
-0 - 29         │ CLEAN       │ Moved to "Clean" label
-30 - 69        │ SUSPICIOUS  │ Moved to "Suspicious" label
-70 - 100       │ INFECTED    │ Moved to "Infected" label
+SCORE RANGE    │ VEREDICTO   │ O QUE ACONTECE
+───────────────┼─────────────┼──────────────────────────
+0 - 29         │ LIMPO       │ Tudo bem com esse ficheiro
+30 - 69        │ SUSPEITO    │ Anda perto, mas duvido
+70 - 100       │ INFETADO    │ Queima com fogo divino
 ```
 
-### The Scoring Rules (Why Files Get Judged Like This)
+### Regras de Pontuação (Porque é Que os Ficheiros São Julgados Assim)
 
-| File Type | Score Range | Reasoning |
-|-----------|-------------|-----------|
-| .exe, .bat, .dll, .scr | 80-100 | Windows executables are sus by default |
-| .js, .jar, .vbs, .hta | 60-90 | Scripts that can mess with your system |
-| .zip, .rar, .7z | 40-70 | Archives are like mystery boxes |
-| .pdf, .doc, .xlsx | 20-60 | Office files can have macros (sneaky) |
-| .mp3, .mp4, .jpg, .txt | 0-20 | Media files usually aren't trying to kill you |
+| Tipo de Ficheiro | Score | Porque? |
+|---|---|---|
+| .exe, .bat, .dll, .scr | 80-100 | Executáveis Windows são suspeitos por defeito |
+| .js, .jar, .vbs, .hta | 60-90 | Scripts podem mexer no teu sistema |
+| .zip, .rar, .7z | 40-70 | Arquivos são como caixas mistério |
+| .pdf, .doc, .xlsx | 20-60 | Ficheiros Office podem ter macros (enganadores) |
+| .mp3, .mp4, .jpg, .txt | 0-20 | Ficheiros média geralmente não querem te matar |
 
-### Filename-Based Red Flags (The Obvious Tells)
+### Red Flags no Filename (As Pistas Óbvias)
 
-Some files just *announce* what they are:
+Alguns ficheiros praticamente gritam o que são:
 
-- **"virus", "malware", "trojan", "ransomware", "exploit"** → Score: 85 (just no)
-- **"suspicious", "danger"** → Score: 50 (we're looking...)
-- **"safe", "clean", "example", "test"** → Score: 10 (probably okay)
+- **"virus", "malware", "trojan", "ransomware"** → Score: 85 (não, obrigado)
+- **"suspicious", "danger"** → Score: 50 (tá muito suspeito)
+- **"safe", "clean", "example"** → Score: 10 (provavelmente ok)
 
-## Check Your Reports (aka "Proof It's Working")
+## Verificar os Relatórios (aka "Prova que Funciona")
 
-After CALMA runs, it leaves breadcrumbs everywhere:
+Após CALMA executar, deixa pistas em toda a parte:
 
 ```bash
-# The latest report (the executive summary)
+# O relatório mais recente
 cat logs/relatorio_*.txt | tail -1
 
-# Watch the execution log unfold (for debugging)
-cat logs/execucao_*.log
+# Ver o log de execução (para debugging)
+tail -f logs/execucao_*.log
 
-# Stare at file metadata (if you're into that)
+# Olhar para metadados (se tens disposição)
 cat dados/anexos_processados/infetados/file.ext.meta
 ```
 
-A typical metadata file looks like:
+Um ficheiro de metadados típico parece assim:
 ```
 === FILE METADATA ===
 Filename: definitely-not-virus.exe
@@ -230,7 +314,7 @@ Classification: INFECTED
 Score: 87/100
 ```
 
-## Things Go Wrong (Troubleshooting)
+## Coisas Que Correm Mal (Troubleshooting)
 
 ### "ERRO: Authentication failed" / "Login credentials invalid"
 
@@ -322,54 +406,54 @@ Data de extração: 2026-01-28 15:30:45
 
 ## The Boring But Important Part (Security Best Practices)
 
-1. **Never, EVER commit your Gmail credentials to Git**
-   (Your password in a public repo is a security crime)
+1. **Nunca, MESMO NUNCA, faças commit das tuas credenciais do Gmail**
+   (Credenciais num repo público é crime de segurança)
 
-2. **Use App Passwords, not your main Gmail password**
-   (App Passwords are like a key that only works for one door)
+2. **Usa App Passwords, não a tua password principal do Gmail**
+   (App Passwords são como uma chave que funciona só numa porta)
 
-3. **Enable 2-Step Verification on your Google Account**
-   (It's not optional, it's just smart)
+3. **Ativa 2-Step Verification na tua conta Google**
+   (Não é opcional, é apenas inteligente)
 
-4. **Check your logs regularly**
-   (Weird activity? The logs will tell you)
+4. **Verifica os logs regularmente**
+   (Atividade estranha? Os logs dizem-te tudo)
 
-5. **Keep backups of important emails**
-   (Before CALMA deletes anything, back it up, just in case)
+5. **Guarda backups dos emails importantes**
+   (Antes de CALMA apagar algo, faz backup)
 
-6. **Actually review the "Suspicious" folder**
-   (Don't just blindly delete stuff - look at it first)
+6. **Revê a pasta "Suspeito" realmente**
+   (Não apagues coisas sem olhar primeiro)
 
-7. **Update your system regularly**
-   (New security patches come out for a reason)
+7. **Atualiza o teu sistema regularmente**
+   (Novos patches de segurança saem por uma razão)
 
-8. **Don't trust this blindly**
-   (CALMA is a helper, not a guarantee. Real malware is sophisticated.)
+8. **Não confies 100% nisto**
+   (CALMA é um ajudante, não uma garantia. Malware real é sofisticado)
 
-## What This Is (And What It Isn't)
+## O Que Isto É (E O Que Não É)
 
-**CALMA Is:**
-- A neat automation tool for email attachment management
-- A heuristic-based classifier (educated guesses)
-- A log-keeping auditor
-- A Gmail organizer on steroids
+**CALMA É:**
+- Uma ferramenta de automação para gestão de anexos
+- Um classificador heurístico (suposições educadas)
+- Um auditor que guarda logs
+- Um organizador de Gmail turboalimentado
 
-**CALMA Is NOT:**
-- A professional antivirus (it doesn't actually execute files)
-- A guarantee against sophisticated malware
-- A substitute for real security training
-- A reason to stop being skeptical about email attachments
+**CALMA NÃO É:**
+- Um antivírus profissional (não executa ficheiros realmente)
+- Uma garantia contra malware sofisticado
+- Um substituto para treino real de segurança
+- Uma razão para parares de suspeitar de anexos de email
 
-## Questions? Issues? Feature Requests?
+## Problemas? Sugestões?
 
-1. Read the Troubleshooting section above first
-2. Check your logs in `logs/` - they tell a story
-3. Verify all configuration steps are complete
-4. Make sure Gmail IMAP is actually enabled
+1. Lê a secção de Troubleshooting acima primeiro
+2. Verifica os logs em `logs/` - contam uma história
+3. Confirma que todos os passos de configuração foram completados
+4. Certifica-te que o IMAP do Gmail está realmente ativado
 
 ---
 
 **Version**: 1.0  
-**Status**: "It works on my machine" (as of January 2026)  
-**Warranty**: Absolutely none. Use at your own risk.  
-**Attitude**: Built with paranoia and a healthy distrust of email attachments
+**Status**: "Funciona na minha máquina" (em Janeiro de 2026)  
+**Warranty**: Absolutamente nenhuma. Usa por tua conta e risco.  
+**Atitude**: Construído com paranoia e desconfiança saudável de anexos de email
