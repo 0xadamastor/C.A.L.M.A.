@@ -12,7 +12,7 @@ cd calma
 ./install.sh
 ```
 
-### No Windows:
+###  Windows:
 ```bash
 cd calma
 install.bat
