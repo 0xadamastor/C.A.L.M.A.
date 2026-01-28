@@ -19,22 +19,17 @@ import logging
 app = Flask(__name__)
 app.secret_key = 'calma-secure-key-2025'
 
-# Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Caminhos base
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOGS_DIR = os.path.join(BASE_DIR, 'logs')
 DATA_DIR = os.path.join(BASE_DIR, 'dados')
 LOGO_DIR = os.path.join(BASE_DIR, 'logo')
 CONFIG_FILE = os.path.join(BASE_DIR, 'calma_config.json')
 
-# Criar diretórios se não existirem
 os.makedirs(LOGS_DIR, exist_ok=True)
 os.makedirs(DATA_DIR, exist_ok=True)
-
-# Configuração padrão
 DEFAULT_CONFIG = {
     'email_user': '',
     'email_pass': '',
@@ -118,13 +113,6 @@ def get_statistics():
     }
     
     try:
-        # Contar ficheiros por diretório
-        clean_dir = os.path.join(DATA_DIR, 'anexos_processados', 'limpos')
-        infected_dir = os.path.join(DATA_DIR, 'anexos_processados', 'infetados')
-        pending_dir = os.path.join(DATA_DIR, 'anexos_processados', 'a_analisar')
-        quarantine_dir = os.path.join(DATA_DIR, 'quarentena')
-        
-        # Contar clean e infected
         for dir_path, key in [(clean_dir, 'clean'), 
                                (infected_dir, 'infected'),
                                (pending_dir, 'pending')]:
@@ -133,7 +121,6 @@ def get_statistics():
                                  if os.path.isfile(os.path.join(dir_path, f)) 
                                  and not f.endswith('.meta')])
         
-        # Quarentena = Suspicious (ficheiros suspeitos vão para quarentena)
         if os.path.exists(quarantine_dir):
             quarantine_files = [f for f in os.listdir(quarantine_dir) 
                                if os.path.isfile(os.path.join(quarantine_dir, f)) 
@@ -152,18 +139,14 @@ def get_recent_logs(limit=200):
     """Obter logs recentes APENAS de execução (não Flask/web logs)"""
     all_logs = []
     try:
-        # Ler APENAS logs de execução, não web logs
         log_files = sorted(glob.glob(os.path.join(LOGS_DIR, 'execucao_*.log')), 
                           key=os.path.getmtime, reverse=True)
         
-        # Se não houver logs de execução, tentar cron.log
         if not log_files:
             log_files = sorted(glob.glob(os.path.join(LOGS_DIR, '*.log')), 
                               key=os.path.getmtime, reverse=True)
-            # Filtrar web logs
             log_files = [f for f in log_files if not f.endswith('web_') and 'web_' not in f]
         
-        # Ler de TODOS os ficheiros de execução para ter o máximo de contexto
         for log_file in log_files:
             try:
                 with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
@@ -172,13 +155,10 @@ def get_recent_logs(limit=200):
             except Exception as e:
                 logger.error(f"Erro ao ler {log_file}: {e}")
         
-        # Remover duplicatas mantendo ordem
         logs = list(dict.fromkeys(all_logs))
         
-        # Retornar os últimos N logs (limit aumentado para 200)
         logs = logs[-limit:] if len(logs) > limit else logs
         
-        # Limpar linhas vazias e aplicar strip
         logs = [log.strip() for log in logs if log.strip()]
     except Exception as e:
         logger.error(f"Erro ao obter logs: {e}")
@@ -191,13 +171,11 @@ def get_recent_analyses(limit=50):
     """Obter análises estruturadas recentes (classificações de ficheiros)"""
     analyses = []
     try:
-        logs = get_recent_logs(500)  # Obter mais logs para extrair análises
+        logs = get_recent_logs(500)
         
         for log in logs:
-            # Procurar por logs de Classificação
             if 'Classificado:' in log:
                 try:
-                    # Extrair informações
                     timestamp_match = re.search(r'\[(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})\]', log)
                     filename_match = re.search(r'Classificado:\s*([^\s]+)', log)
                     status_match = re.search(r'Classificado:.*->\s*(\w+)\s*\(', log)
@@ -222,11 +200,8 @@ def get_recent_analyses(limit=50):
     except Exception as e:
         logger.error(f"Erro ao obter análises: {e}")
     
-    # Retornar as últimas N análises
     return analyses[-limit:] if len(analyses) > limit else analyses
 
-
-# ============ ROTAS ============
 
 @app.route('/logo/<filename>')
 def serve_logo(filename):
@@ -256,7 +231,6 @@ def api_config():
     """API para obter/salvar configuração"""
     if request.method == 'GET':
         config = load_config()
-        # Não retornar passwords em GET (segurança)
         config['email_pass'] = '••••••••' if config.get('email_pass') else ''
         config['sandbox_api_key'] = '••••••••' if config.get('sandbox_api_key') else ''
         return jsonify(config)
@@ -266,18 +240,15 @@ def api_config():
             data = request.get_json()
             config = load_config()
             
-            # Atualizar configuração (exceto campos masked)
             for key in data:
                 if key not in ['email_pass', 'sandbox_api_key'] or data[key] != '••••••••':
                     config[key] = data[key]
                 else:
-                    # Se o valor é masked, manter o original
                     if not data[key].startswith('•'):
                         config[key] = data[key]
             
             success, message = save_config(config)
             
-            # Atualizar calma.sh com nova configuração
             if success:
                 update_calma_script(config)
             
@@ -304,7 +275,6 @@ def api_status():
 @app.route('/api/logs', methods=['GET'])
 def api_logs():
     """API para obter logs recentes"""
-    # Aceitar ambos 'limit' e 'lines' como parâmetros
     limit = request.args.get('lines', request.args.get('limit', 200, type=int), type=int)
     logs = get_recent_logs(limit)
     return jsonify({'logs': logs})
@@ -377,7 +347,6 @@ def api_cron_disable():
     try:
         config = load_config()
         
-        # Remover entrada do cron
         result = subprocess.run(['crontab', '-l'], capture_output=True, text=True)
         crontab_content = result.stdout
         
@@ -408,7 +377,6 @@ def api_run():
         
         os.chmod(script_path, 0o755)
         
-        # Executar em background
         log_file = os.path.join(LOGS_DIR, f'manual_run_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log')
         with open(log_file, 'w') as f:
             subprocess.Popen([script_path], stdout=f, stderr=subprocess.STDOUT, cwd=BASE_DIR)
@@ -424,7 +392,6 @@ def api_logs_clear():
     try:
         days = request.get_json().get('days', 7)
         
-        # Eliminar logs antigos
         now = datetime.now()
         cutoff_time = (now - timedelta(days=days)).timestamp()
         
@@ -469,12 +436,9 @@ def api_test_connection():
 def update_calma_script(config):
     """Atualizar calma.sh com a nova configuração"""
     try:
-        script_path = os.path.join(BASE_DIR, 'calma.sh')
-        
         with open(script_path, 'r', encoding='utf-8') as f:
             content = f.read()
         
-        # Atualizar variáveis de configuração
         replacements = {
             'EMAIL_USER="[^"]*"': f'EMAIL_USER="{config.get("email_user", "")}"',
             'EMAIL_PASS="[^"]*"': f'EMAIL_PASS="{config.get("email_pass", "")}"',
