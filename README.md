@@ -1,8 +1,6 @@
-# ╔═══════════════════════════════════════════════════════════════╗
-# ║                                                               ║
-# ║           CALMA - Email Attachment Analysis System            ║
-# ║                                                               ║
-# ╚═══════════════════════════════════════════════════════════════╝
+# ╔════════════════════════════╗
+# ║           CALMA            ║
+# ╚════════════════════════════╝
 
 **CALMA** is your paranoid email security guard. It automatically extracts, analyzes, and categorizes email attachments with the enthusiasm of a postal worker who's *really* concerned about what's in those packages. No more wondering if that "invoice.exe" from your "boss" is actually what it claims to be.
 
