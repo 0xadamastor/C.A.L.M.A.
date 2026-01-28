@@ -1,7 +1,7 @@
 #!/bin/bash
 
-export EMAIL_USER="calma.sandbox@gmail.com"
-export EMAIL_PASS="pujc jsmr ipln phnh"
+export EMAIL_USER="email@gmail.com"
+export EMAIL_PASS="xxxx xxxx xxxx xxxx"
 export EMAIL_SERVER="imap.gmail.com"
 export EMAIL_PORT="993"
 
