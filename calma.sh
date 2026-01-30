@@ -1,32 +1,95 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# C.A.L.M.A. - Sistema Automático de Análise de Anexos
+set -e
+
+detect_os() {
+    case "$(uname -s)" in
+        Linux*)     OS_TYPE="Linux" ;;
+        Darwin*)    OS_TYPE="macOS" ;;
+        CYGWIN*|MINGW*|MSYS*) OS_TYPE="Windows" ;;
+        *)          OS_TYPE="Unknown" ;;
+    esac
+}
+
+detect_os
 
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG_FILE="${BASE_DIR}/config/calma_config.json"
 
-# Carregar configurações
-source "${BASE_DIR}/config/config.sh"
+carregar_config_json() {
+    if [ ! -f "$CONFIG_FILE" ]; then
+        echo "ERRO: Arquivo de configuração $CONFIG_FILE não encontrado!"
+        exit 1
+    fi
 
-# Diretórios de trabalho
+    if ! command -v jq &> /dev/null; then
+        echo "ERRO: 'jq' não está instalado!"
+        echo ""
+        echo "Instruções de instalação:"
+        case "$OS_TYPE" in
+            Linux)
+                if [ -f /etc/debian_version ]; then
+                    echo "  Ubuntu/Debian: sudo apt update && sudo apt install jq"
+                elif [ -f /etc/fedora-release ]; then
+                    echo "  Fedora/RHEL: sudo dnf install jq"
+                elif [ -f /etc/arch-release ]; then
+                    echo "  Arch Linux: sudo pacman -S jq"
+                else
+                    echo "  Use o gerenciador de pacotes da sua distribuição"
+                fi
+                ;;
+            macOS)
+                echo "  macOS: brew install jq"
+                ;;
+            Windows)
+                echo "  Windows (Git Bash): Baixe de https://stedolan.github.io/jq/download/"
+                echo "  Windows (WSL): sudo apt install jq"
+                ;;
+        esac
+        echo ""
+        exit 1
+    fi
+
+    EMAIL_USER=$(jq -r '.email_user // "calma.sandbox@gmail.com"' "$CONFIG_FILE")
+    EMAIL_PASS=$(jq -r '.email_pass // ""' "$CONFIG_FILE")
+    EMAIL_SERVER=$(jq -r '.email_server // "imap.gmail.com"' "$CONFIG_FILE")
+    EMAIL_PORT=$(jq -r '.email_port // 993' "$CONFIG_FILE")
+    
+    MAX_FILE_SIZE=$(jq -r '.max_file_size // 10485760' "$CONFIG_FILE")
+    SCAN_TIMEOUT=$(jq -r '.scan_timeout // 300' "$CONFIG_FILE")
+    KEEP_LOGS_DAYS=$(jq -r '.keep_logs_days // 7' "$CONFIG_FILE")
+    
+    HASH_ALGORITHM=$(jq -r '.hash_algorithm // "sha256"' "$CONFIG_FILE")
+    ENABLE_METADATA=$(jq -r '.enable_metadata // true' "$CONFIG_FILE")
+}
+
+carregar_config_json
+
+
 LOGS_DIR="${BASE_DIR}/logs"
-DATA_DIR="${BASE_DIR}/data"
+DATA_DIR="${BASE_DIR}/dados"
 EMAIL_ATTACHMENTS_DIR="${DATA_DIR}/anexos_processados"
 PENDING_DIR="${EMAIL_ATTACHMENTS_DIR}/a_analisar"
 CLEAN_DIR="${EMAIL_ATTACHMENTS_DIR}/limpos"
 INFECTED_DIR="${EMAIL_ATTACHMENTS_DIR}/infetados"
+SUSPICIOUS_DIR="${EMAIL_ATTACHMENTS_DIR}/suspeitos"
 QUARANTINE_DIR="${DATA_DIR}/quarentena"
 
-# Configurações adicionais
-KEEP_LOGS_DAYS="7"
-HASH_ALGORITHM="sha256"
-ENABLE_METADATA="true"
+REQUIRE_VM="true"
+VM_WARNING_ONLY="false"
 
+NEUTRALIZE_INFECTED="true"
+NEUTRALIZE_SUSPICIOUS="true"
+AUTO_DELETE_INFECTED_DAYS="30"
+REMOVE_EXECUTE_PERMISSIONS="true"
+
+SESSION_LOG="${LOGS_DIR}/execucao_$(date +%Y%m%d_%H%M%S).log"
 
 inicializar_diretorios() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] Inicializando diretórios..."
 
     local dirs=("$LOGS_DIR" "$DATA_DIR" "$EMAIL_ATTACHMENTS_DIR"
-                "$PENDING_DIR" "$CLEAN_DIR" "$INFECTED_DIR" "$QUARANTINE_DIR")
+                "$PENDING_DIR" "$CLEAN_DIR" "$INFECTED_DIR" "$SUSPICIOUS_DIR" "$QUARANTINE_DIR")
 
     for dir in "${dirs[@]}"; do
         if [ ! -d "$dir" ]; then
@@ -35,10 +98,9 @@ inicializar_diretorios() {
         fi
     done
 
-    SESSION_LOG="${LOGS_DIR}/execucao_$(date +%Y%m%d_%H%M%S).log"
     touch "$SESSION_LOG"
 
-    echo "Estrutura de diretórios verificada." | tee -a "$SESSION_LOG" 2>/dev/null
+    echo "Estrutura de diretórios verificada." >> "$SESSION_LOG" 2>/dev/null
 }
 
 log_message() {
@@ -46,7 +108,7 @@ log_message() {
     local message="$2"
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
 
-    echo "[$timestamp] [$level] $message" | tee -a "$SESSION_LOG" 2>/dev/null
+    echo "[$timestamp] [$level] $message" >> "$SESSION_LOG" 2>/dev/null
 }
 
 calcular_hash() {
@@ -66,6 +128,41 @@ calcular_hash() {
     esac
 
     echo "$hash_result"
+}
+
+neutralizar_ficheiro() {
+    local file_path="$1"
+    local classification="$2"
+    local basename_file=$(basename "$file_path")
+    
+    if [ "$REMOVE_EXECUTE_PERMISSIONS" = "true" ]; then
+        chmod 000 "$file_path" 2>/dev/null
+        log_message "SECURITY" "Permissões removidas: $basename_file"
+    fi
+    
+    if [ "$classification" = "INFECTADO" ] && [ "$NEUTRALIZE_INFECTED" = "true" ]; then
+        local extension="${basename_file##*.}"
+        if [[ "$extension" =~ ^(exe|bat|cmd|ps1|dll|scr|vbs|js|jar|com|pif|msi)$ ]]; then
+            local new_name="${file_path}.NEUTRALIZED.txt"
+            mv "$file_path" "$new_name" 2>/dev/null
+            log_message "SECURITY" "Ficheiro neutralizado: $basename_file -> $(basename "$new_name")"
+            echo "$new_name"
+            return 0
+        fi
+    fi
+    
+    if [ "$classification" = "SUSPEITO" ] && [ "$NEUTRALIZE_SUSPICIOUS" = "true" ]; then
+        local extension="${basename_file##*.}"
+        if [[ "$extension" =~ ^(exe|bat|cmd|ps1|dll|scr|vbs)$ ]]; then
+            local new_name="${file_path}.QUARANTINE.txt"
+            mv "$file_path" "$new_name" 2>/dev/null
+            log_message "SECURITY" "Ficheiro em quarentena: $basename_file -> $(basename "$new_name")"
+            echo "$new_name"
+            return 0
+        fi
+    fi
+    
+    echo "$file_path"
 }
 
 gerar_metadados() {
@@ -105,103 +202,142 @@ mover_email_para_label() {
 import imaplib
 import sys
 import time
-import email as email_lib
-from email.header import decode_header
+import re
 
-def move_email_to_label(email_id, label_name, search_term):
+def move_email_to_label(email_id, label_name, filename):
+    mail = None
     try:
-        filename = search_term.split(':')[-1].strip() if ':' in search_term else search_term
-        print(f"DEBUG: Procurando email com '{filename}' para mover para '{label_name}'")
-
+        clean_filename = filename.strip()
+        if ':' in clean_filename:
+            clean_filename = clean_filename.split(':')[-1].strip()
+        
+        print(f"[INFO] Procurando email com anexo '{clean_filename}'")
+        
         mail = imaplib.IMAP4_SSL("imap.gmail.com", 993)
         mail.login("$EMAIL_USER", "$EMAIL_PASS")
-
-        mail.select("INBOX")
-        print(f"DEBUG: Inbox selecionada")
-
-        found_email_id = None
         
-        try:
-            keyword = filename.split('.')[0] if '.' in filename else filename
-            status, data = mail.search(None, 'ALL')
-            
-            if status == "OK" and data[0]:
-                for eid in data[0].split():
-                    try:
-                        status, msg_data = mail.fetch(eid, '(RFC822)')
-                        if status == "OK":
-                            email_content = msg_data[0][1].decode('utf-8', errors='ignore')
-                            if (filename.lower() in email_content.lower() or 
-                                keyword.lower() in email_content.lower()):
-                                found_email_id = eid
-                                print(f"DEBUG: Email encontrado com ID {eid.decode()}")
-                                break
-                    except Exception as search_error:
-                        continue
-        except Exception as e:
-            print(f"DEBUG: Erro na busca iterativa: {e}")
-        
-        if not found_email_id:
-            print(f"ERRO: Email com '{filename}' não encontrado na inbox")
-            if email_id and email_id.isdigit():
-                print(f"DEBUG: Tentando com ID {email_id}")
-                status, data = mail.fetch(str(email_id).encode(), '(RFC822)')
-                if status == "OK":
-                    found_email_id = str(email_id).encode()
-                    print(f"DEBUG: Email encontrado com ID {email_id}")
-                else:
-                    mail.logout()
-                    return False
-            else:
-                mail.logout()
-                return False
-
-        result = mail.copy(found_email_id, label_name)
-        print(f"DEBUG: Resultado do COPY: {result}")
-
-        if result[0] == "OK":
-            mail.store(found_email_id, '+FLAGS', '\\\\Deleted')
-            mail.expunge()
-            print(f"DEBUG: Email marcado como deletado e inbox expurgada")
-
-            mail.logout()
-
-            time.sleep(2)
-
-            mail2 = imaplib.IMAP4_SSL("imap.gmail.com", 993)
-            mail2.login("$EMAIL_USER", "$EMAIL_PASS")
-
-            mail2.select(label_name)
-            status, messages = mail2.search(None, 'ALL')
-            if status == "OK":
-                count = len(messages[0].split())
-                print(f"DEBUG: Label '{label_name}' agora tem {count} emails")
-
-            mail2.logout()
-
-            print("SUCCESS:Email movido com sucesso para a label")
-            return True
-        else:
-            print(f"ERRO:Falha ao mover email: {result}")
-            mail.logout()
+        status, data = mail.select("INBOX", readonly=False)
+        if status != "OK":
+            print(f"[ERRO] Falha ao selecionar INBOX: {status}")
             return False
+        
+        print(f"[DEBUG] INBOX selecionada com sucesso")
+        
+        status, message_ids = mail.search(None, 'ALL')
+        if status != "OK" or not message_ids[0]:
+            print(f"[WARN] Nenhum email encontrado na INBOX")
+            return False
+        
+        email_ids_list = message_ids[0].split()
+        print(f"[DEBUG] Total de {len(email_ids_list)} emails na INBOX")
+        
+        found_id = None
+        for eid in email_ids_list:
+            try:
+                status, msg_data = mail.fetch(eid, '(BODY.PEEK[])')
+                if status != "OK":
+                    continue
+                
+                raw_email = msg_data[0][1]
+                email_text = raw_email.decode('utf-8', errors='ignore')
+                
+                if clean_filename.lower() in email_text.lower():
+                    found_id = eid
+                    print(f"[SUCCESS] Email encontrado: UID {eid.decode()}")
+                    break
+                    
+            except Exception as e:
+                print(f"[DEBUG] Erro ao processar email {eid}: {e}")
+                continue
+        
+        if not found_id and email_id and str(email_id).isdigit():
+            print(f"[WARN] Email não encontrado por nome, tentando UID {email_id}")
+            found_id = str(email_id).encode()
+        
+        if not found_id:
+            print(f"[ERRO] Email com anexo '{clean_filename}' não encontrado")
+            return False
+        
+        print(f"[DEBUG] Copiando email para label '{label_name}'")
+        status, result = mail.copy(found_id, label_name)
+        
+        if status != "OK":
+            print(f"[ERRO] Falha ao copiar: {status} - {result}")
+            return False
+        
+        print(f"[DEBUG] Email copiado - Status: {status}, Resultado: {result}")
 
+        result_str = str(result)
+        if 'COPYUID' not in result_str and 'Success' in result_str:
+            print(f"[WARN] Cópia pode ter falhado (sem COPYUID). Verificando label...")
+            
+            time.sleep(1)
+            status_check, data_check = mail.select(label_name, readonly=True)
+            if status_check == "OK":
+                status_search, messages_check = mail.search(None, 'ALL')
+                count_before = len(messages_check[0].split()) if messages_check[0] else 0
+                
+                mail.select("INBOX", readonly=False)
+                
+                if count_before == 0:
+                    print(f"[ERRO] Cópia falhou - Label '{label_name}' continua vazia")
+                    print(f"[INFO] Gmail pode estar bloqueando este tipo de anexo (.exe, .scr, etc)")
+                    return False
+        
+        print(f"[DEBUG] Removendo email da INBOX")
+        status, result = mail.store(found_id, '+FLAGS', '\\\\Deleted')
+        
+        if status != "OK":
+            print(f"[WARN] Falha ao marcar como deletado: {status}")
+        
+        mail.expunge()
+        print(f"[DEBUG] INBOX expurgada")
+        
+        time.sleep(1)
+        
+        status, data = mail.select(label_name, readonly=True)
+        if status == "OK":
+            status, messages = mail.search(None, 'ALL')
+            if status == "OK":
+                count = len(messages[0].split()) if messages[0] else 0
+                print(f"[INFO] Label '{label_name}' agora tem {count} emails")
+        
+        print(f"[SUCCESS] Email movido para '{label_name}' com sucesso!")
+        return True
+        
+    except imaplib.IMAP4.error as e:
+        print(f"[ERRO] Erro IMAP: {e}")
+        return False
     except Exception as e:
-        error_msg = str(e)
-        print(f"ERRO:Erro ao mover email: {error_msg}")
+        print(f"[ERRO] Erro inesperado: {e}")
         import traceback
         traceback.print_exc()
         return False
+    finally:
+        if mail:
+            try:
+                mail.close()
+                mail.logout()
+            except:
+                pass
 
 email_id = "$email_id"
 label_name = "$label_name"
-search_term = "$original_filename"
-success = move_email_to_label(email_id, label_name, search_term)
+filename = "$original_filename"
+
+success = move_email_to_label(email_id, label_name, filename)
 sys.exit(0 if success else 1)
 PYTHON_EOF
 
     local result=$?
-    return $result
+    
+    if [ $result -eq 0 ]; then
+        log_message "SUCCESS" "Email movido para label '$label_name'"
+        return 0
+    else
+        log_message "WARN" "Falha ao mover email para label '$label_name'"
+        return 1
+    fi
 }
 
 
@@ -335,7 +471,7 @@ PYTHON_EOF
             INFO:*)
                 log_message "INFO" "${line#INFO:}"
                 if [[ "${line#INFO:}" =~ ([0-9]+).*email.*não.lido ]]; then
-                    extracted_count=1  # Temos emails para processar
+                    extracted_count=1
                 fi
                 ;;
             PROCESSANDO:*)
@@ -370,48 +506,74 @@ PYTHON_EOF
 }
 
 
-submeter_sandbox_simulada() {
+calcular_score_risco() {
     local file_path="$1"
-    local filename=$(basename "$file_path")
+    local filename
+    filename=$(basename "$file_path")
 
-    local task_id=$((RANDOM % 9000 + 1000))
+    local base_dir="${CALMA_DIR:-}"
+    if [ -z "$base_dir" ]; then
+        base_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    fi
 
-    local score=0
+    local detector="$base_dir/scripts/detection/detect_malware_universal.py"
+
+    if [ -f "$detector" ]; then
+        local score_out
+        score_out=$(python3 "$detector" "$file_path" --score-only 2>/dev/null || true)
+        if [[ "$score_out" =~ ^[0-9]+$ ]]; then
+            if [ "$score_out" -lt 0 ]; then score_out=0; fi
+            if [ "$score_out" -gt 100 ]; then score_out=100; fi
+            echo "$score_out"
+            return 0
+        fi
+    fi
+
     local extension="${filename##*.}"
+    local score=30
 
-    case "$extension" in
-        exe|bat|cmd|ps1|vbs|dll|scr)
-            score=$((80 + RANDOM % 20))  # Alto risco (80-100)
+    case "${extension,,}" in
+        exe|dll|scr)
+            score=90
+            ;;
+        bat|cmd|ps1|vbs)
+            score=85
             ;;
         js|jar|wsf|hta)
-            score=$((60 + RANDOM % 30))  # Médio-alto risco (60-90)
+            score=75
             ;;
-        zip|rar|7z)
-            score=$((40 + RANDOM % 30))  # Risco médio (40-70)
+        zip|rar|7z|tar|gz)
+            score=55
             ;;
-        pdf|doc|docx|xls|xlsx|ppt|pptx)
-            score=$((20 + RANDOM % 40))  # Risco variável (20-60)
+        pdf)
+            score=40
             ;;
-        txt|png|jpg|jpeg|gif|mp3|mp4|avi|mpg)
-            score=$((0 + RANDOM % 20))   # Baixo risco (0-20)
+        doc|docx|xls|xlsx|ppt|pptx)
+            score=45
+            ;;
+        txt|md|rtf)
+            score=10
+            ;;
+        png|jpg|jpeg|gif|bmp)
+            score=5
             ;;
         *)
-            score=$((RANDOM % 100))
+            score=30
             ;;
     esac
 
-    if [[ "$filename" =~ (virus|malware|trojan|worm|ransom|keylogger|spyware|hack|crack|exploit|malicioso|infeccao) ]]; then
-        score=85  # Ficheiros claramente maliciosos -> INFECTADOS (≥70)
-    elif [[ "$filename" =~ (suspeito|suspicious|danger) ]]; then
-        score=50  # Ficheiros suspeitos -> SUSPICIOUS (30-69)
-    elif [[ "$filename" =~ (seguro|safe|clean|teste|demo|exemplo|sample|documento|relatorio|report) ]]; then
-        score=10  # Ficheiros claramente seguros -> CLEAN (<30)
+    if [[ "${filename,,}" =~ (virus|malware|trojan|worm|ransom|keylogger|spyware|exploit|backdoor) ]]; then
+        score=95
+    elif [[ "${filename,,}" =~ (suspeito|suspicious|danger) ]]; then
+        score=60
+    elif [[ "${filename,,}" =~ (safe|seguro|clean|teste|sample|demo|exemplo) ]]; then
+        score=5
     fi
 
     if [ $score -lt 0 ]; then score=0; fi
     if [ $score -gt 100 ]; then score=100; fi
 
-    echo "$task_id:$score"
+    echo "$score"
 }
 
 
@@ -487,9 +649,7 @@ processar_anexos_pendentes() {
             fi
         fi
 
-        local task_id_result=$(submeter_sandbox_simulada "$file_path")
-        local task_id=$(echo "$task_id_result" | cut -d: -f1)
-        local score=$(echo "$task_id_result" | cut -d: -f2)
+        local score=$(calcular_score_risco "$file_path")
 
         log_message "INFO" "Análise concluída. Score: $score/100"
 
@@ -497,13 +657,13 @@ processar_anexos_pendentes() {
         local destination
         local label_name
 
-        if [ "$score" -ge 70 ]; then
+        if [ "$score" -ge 75 ]; then
             classification="INFECTADO"
             destination="$INFECTED_DIR"
             label_name="Infected"
-        elif [ "$score" -ge 30 ]; then
+        elif [ "$score" -ge 50 ]; then
             classification="SUSPEITO"
-            destination="$QUARANTINE_DIR"
+            destination="$SUSPICIOUS_DIR"
             label_name="Suspicious"
         else
             classification="LIMPO"
@@ -518,16 +678,33 @@ processar_anexos_pendentes() {
             local move_result=$?
 
             if [ $move_result -eq 0 ]; then
-                log_message "SUCCESS" " Email $email_id movido para label '$label_name'"
+                log_message "SUCCESS" "Email $email_id movido para label '$label_name'"
             else
-                log_message "WARN" " Falha ao mover email $email_id (código: $move_result)"
+                log_message "WARN" "Falha ao mover email $email_id para '$label_name' (código: $move_result)"
+                
+                if [ "$label_name" = "Infected" ]; then
+                    log_message "INFO" "Gmail pode estar bloqueando anexo perigoso (.exe). Tentando mover para 'Suspicious'..."
+                    
+                    mover_email_para_label "$email_id" "Suspicious" "$classification" "$original_filename"
+                    local fallback_result=$?
+                    
+                    if [ $fallback_result -eq 0 ]; then
+                        log_message "SUCCESS" "Email movido para 'Suspicious' (fallback)"
+                        label_name="Suspicious (Infected bloqueado)"
+                    else
+                        log_message "ERROR" "Falha no fallback. Email permanece na INBOX"
+                    fi
+                fi
             fi
         else
             log_message "INFO" "Email não movido (ID inválido ou não disponível): $email_id"
         fi
 
-        local destination_file="$destination/$filename"
-        if mv "$file_path" "$destination_file"; then
+        local neutralized_path=$(neutralizar_ficheiro "$file_path" "$classification")
+        local final_filename=$(basename "$neutralized_path")
+        local destination_file="$destination/$final_filename"
+        
+        if mv "$neutralized_path" "$destination_file"; then
             log_message "INFO" "Ficheiro movido para: $destination"
         else
             log_message "ERROR" "Falha ao mover ficheiro para $destination"
@@ -537,22 +714,30 @@ processar_anexos_pendentes() {
             mv "${file_path}.meta" "$destination/"
         fi
 
-        local meta_file="$destination/${filename}.meta"
-        if [ -f "$meta_file" ]; then
-            {
-                echo ""
-                echo "=== RESULTADO DA ANÁLISE ==="
-                echo "Task ID: $task_id"
-                echo "Score: $score/100"
-                echo "Classificação: $classification"
-                echo "Data da análise: $(date '+%Y-%m-%d %H:%M:%S')"
-                echo "Destino final: $destination"
-                echo "Email ID original: $email_id"
-                echo "Label Gmail: $label_name"
-                echo "Remetente: $email_from"
-                echo "Assunto: $email_subject"
-            } >> "$meta_file"
+        local meta_file="$destination/${final_filename}.meta"
+        if [ -f "${file_path}.meta" ]; then
+            mv "${file_path}.meta" "$meta_file" 2>/dev/null
         fi
+        
+        {
+            echo ""
+            echo "=== RESULTADO DA ANÁLISE ==="
+            echo "Task ID: $task_id"
+            echo "Score: $score/100"
+            echo "Classificação: $classification"
+            echo "Data da análise: $(date '+%Y-%m-%d %H:%M:%S')"
+            echo "Destino final: $destination"
+            echo "Email ID original: $email_id"
+            echo "Label Gmail: $label_name"
+            echo "Remetente: $email_from"
+            echo "Assunto: $email_subject"
+            echo ""
+            echo "=== MEDIDAS DE SEGURANÇA ==="
+            echo "Nome original: $filename"
+            echo "Nome final: $final_filename"
+            echo "Permissões removidas: $([ "$REMOVE_EXECUTE_PERMISSIONS" = "true" ] && echo "SIM" || echo "NÃO")"
+            echo "Ficheiro neutralizado: $([ "$filename" != "$final_filename" ] && echo "SIM" || echo "NÃO")"
+        } >> "$meta_file"
 
         log_message "SUCCESS" "Classificado: $filename -> $classification (Score: $score/100)"
         processed_files=$((processed_files + 1))
@@ -579,7 +764,7 @@ processar_anexos_pendentes() {
 gerar_relatorio_execucao() {
     local total_clean=$(find "$CLEAN_DIR" -type f ! -name "*.meta" 2>/dev/null | wc -l)
     local total_infected=$(find "$INFECTED_DIR" -type f ! -name "*.meta" 2>/dev/null | wc -l)
-    local total_quarantine=$(find "$QUARANTINE_DIR" -type f ! -name "*.meta" 2>/dev/null | wc -l)
+    local total_suspicious=$(find "$SUSPICIOUS_DIR" -type f ! -name "*.meta" 2>/dev/null | wc -l)
     local total_pending=$(find "$PENDING_DIR" -type f ! -name "*.meta" 2>/dev/null | wc -l)
 
     local report_file="${LOGS_DIR}/relatorio_$(date +%Y%m%d_%H%M%S).txt"
@@ -587,17 +772,16 @@ gerar_relatorio_execucao() {
     {
         echo "=================================================="
         echo "       RELATÓRIO DO SISTEMA DE ANÁLISE"
-        echo "                 $(date '+%d/%m/%Y %H:%M:%S')"
+        echo "         $(date '+%d/%m/%Y %H:%M:%S')"
         echo "=================================================="
         echo ""
         echo "ESTATÍSTICAS DE CLASSIFICAÇÃO:"
         echo "  • Ficheiros LIMPOS:       $total_clean"
         echo "  • Ficheiros INFETADOS:    $total_infected"
-        echo "  • Ficheiros em QUARENTENA: $total_quarantine"
+        echo "  • Ficheiros SUSPEITOS:    $total_suspicious"
         echo "  • Ficheiros PENDENTES:    $total_pending"
         echo ""
         echo "CONFIGURAÇÃO:"
-        echo "  • Modo: $( [ "$SANDBOX_ENABLED" = "true" ] && echo "SANDBOX REAL" || echo "MODO SIMULAÇÃO" )"
         echo "  • Email: $EMAIL_USER"
         echo "  • Diretório base: $BASE_DIR"
         echo ""
@@ -623,7 +807,7 @@ gerar_relatorio_execucao() {
     echo "=================================================="
     echo "   Ficheiros LIMPOS:     $total_clean"
     echo "   Ficheiros INFETADOS:  $total_infected"
-    echo "   Ficheiros SUSPEITOS:  $total_quarantine"
+    echo "   Ficheiros SUSPEITOS:  $total_suspicious"
     echo "   Ficheiros PENDENTES:   $total_pending"
     echo ""
     echo "   Emails movidos para labels no Gmail"
@@ -637,6 +821,15 @@ limpar_logs_antigos() {
     find "$LOGS_DIR" -type f -name "relatorio_*.txt" -mtime +$KEEP_LOGS_DAYS -delete 2>/dev/null
     find "$LOGS_DIR" -type f -name "email_map_*.txt" -mtime +1 -delete 2>/dev/null
     log_message "INFO" "Limpeza de logs concluída."
+}
+
+limpar_ficheiros_infectados_antigos() {
+    if [ -n "$AUTO_DELETE_INFECTED_DAYS" ] && [ "$AUTO_DELETE_INFECTED_DAYS" -gt 0 ]; then
+        log_message "SECURITY" "Removendo ficheiros infectados com mais de $AUTO_DELETE_INFECTED_DAYS dias..."
+        local count=$(find "$INFECTED_DIR" -type f -mtime +$AUTO_DELETE_INFECTED_DAYS 2>/dev/null | wc -l)
+        find "$INFECTED_DIR" -type f -mtime +$AUTO_DELETE_INFECTED_DAYS -delete 2>/dev/null
+        log_message "SECURITY" "$count ficheiro(s) infectado(s) antigo(s) removido(s)"
+    fi
 }
 
 verificar_dependencias() {
@@ -653,12 +846,130 @@ verificar_dependencias() {
     done
 
     if [ $missing_deps -gt 0 ]; then
-        log_message "ERROR" "Faltam dependências. Instale com: sudo apt install python3"
+        log_message "ERROR" "Faltam dependências Python!"
+        echo ""
+        echo "Python 3 não encontrado. Instruções:"
+        case "$OS_TYPE" in
+            Linux)
+                echo "  Ubuntu/Debian: sudo apt update && sudo apt install python3"
+                echo "  Fedora/RHEL: sudo dnf install python3"
+                echo "  Arch Linux: sudo pacman -S python"
+                ;;
+            macOS)
+                echo "  macOS: brew install python@3.10"
+                ;;
+            Windows)
+                echo "  Windows: https://www.python.org/downloads/"
+                echo "  ou: winget install Python.Python.3.10"
+                ;;
+        esac
+        echo ""
         return 1
     fi
 
     log_message "SUCCESS" "Dependências verificadas."
     return 0
+}
+
+verificar_ambiente_virtual() {
+    log_message "SECURITY" "Verificando ambiente de execução..."
+    
+    local is_vm=false
+    local vm_type="Desconhecido"
+    
+    if [ -f /sys/class/dmi/id/product_name ]; then
+        local product_name=$(cat /sys/class/dmi/id/product_name 2>/dev/null)
+        case "$product_name" in
+            *VirtualBox*)
+                is_vm=true
+                vm_type="VirtualBox"
+                ;;
+            *VMware*)
+                is_vm=true
+                vm_type="VMware"
+                ;;
+            *KVM*|*QEMU*)
+                is_vm=true
+                vm_type="KVM/QEMU"
+                ;;
+            *Xen*)
+                is_vm=true
+                vm_type="Xen"
+                ;;
+        esac
+    fi
+    
+    if [ "$is_vm" = false ]; then
+        if [ -f /sys/class/dmi/id/sys_vendor ]; then
+            local sys_vendor=$(cat /sys/class/dmi/id/sys_vendor 2>/dev/null)
+            case "$sys_vendor" in
+                *QEMU*|*VirtualBox*|*VMware*|*innotek*|*Xen*|*Parallels*)
+                    is_vm=true
+                    vm_type="$sys_vendor"
+                    ;;
+            esac
+        fi
+    fi
+    
+    if [ "$is_vm" = false ]; then
+        if lscpu 2>/dev/null | grep -q "Hypervisor vendor"; then
+            is_vm=true
+            vm_type=$(lscpu | grep "Hypervisor vendor" | cut -d: -f2 | xargs)
+        fi
+    fi
+    
+    if [ "$is_vm" = false ]; then
+        if command -v systemd-detect-virt &> /dev/null; then
+            if systemd-detect-virt --quiet 2>/dev/null; then
+                is_vm=true
+                vm_type=$(systemd-detect-virt 2>/dev/null)
+            fi
+        fi
+    fi
+    
+    if [ "$is_vm" = true ]; then
+        log_message "SUCCESS" "Ambiente Virtual detectado: $vm_type"
+        echo ""
+        echo "  ✓ Ambiente seguro detectado: $vm_type"
+        echo "  ✓ Sistema pode processar ficheiros com segurança"
+        echo ""
+        return 0
+    else
+        echo ""
+        echo "    AVISO DE SEGURANÇA "
+        echo ""
+        echo "  Este sistema NÃO está a correr numa Máquina Virtual!"
+        echo ""
+        echo "  RECOMENDAÇÃO FORTE:"
+        echo "  - Execute este sistema APENAS em máquinas virtuais"
+        echo "  - VirtualBox, VMware, QEMU, Hyper-V, etc."
+        echo ""
+        echo "  PORQUÊ?"
+        echo "  - Proteção contra malware acidental"
+        echo "  - Isolamento total do sistema host"
+        echo "  - Possibilidade de snapshots/rollback"
+        echo "  - Ambiente controlado para análise de ficheiros"
+        echo ""
+        
+        if [ "$REQUIRE_VM" = "true" ] && [ "$VM_WARNING_ONLY" = "false" ]; then
+            echo "  EXECUÇÃO BLOQUEADA"
+            echo ""
+            echo "  Configure REQUIRE_VM=\"false\" no script para ignorar"
+            echo "  ou VM_WARNING_ONLY=\"true\" para apenas avisar"
+            echo ""
+            log_message "ERROR" "Execução bloqueada - VM não detectada"
+            return 1
+        else
+            echo "  Continuando mesmo assim..."
+            echo "  (Configurado para: $([ "$VM_WARNING_ONLY" = "true" ] && echo "AVISAR APENAS" || echo "PERMITIR"))"
+            echo ""
+            log_message "WARN" "Sistema a correr FORA de VM - RISCO ELEVADO"
+            
+            read -p "  Pressione ENTER para continuar ou CTRL+C para cancelar..." -t 10
+            echo ""
+            return 0
+        fi
+    fi
 }
 
 
@@ -726,6 +1037,10 @@ main() {
     verificar_labels
     echo ""
 
+    if ! verificar_ambiente_virtual; then
+        exit 1
+    fi
+
     inicializar_diretorios
     log_message "INFO" "Iniciando sistema..."
 
@@ -744,6 +1059,7 @@ main() {
 
     log_message "PHASE" "FASE 3: Manutenção"
     limpar_logs_antigos
+    limpar_ficheiros_infectados_antigos
 
     log_message "PHASE" "FASE 4: Relatório"
     gerar_relatorio_execucao

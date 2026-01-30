@@ -1,0 +1,1337 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CALMA SOC</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #ff0000;
+            --success: #00ff00;
+            --text: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.6);
+            --border: rgba(255, 255, 255, 0.1);
+            --bg: #000000;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            font-size: 14px;
+            letter-spacing: 0.03em;
+        }
+
+        /* Layout Principal */
+        #app {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .logo-image {
+            height: 60px;
+            width: auto;
+            max-width: 200px;
+        }
+
+        .logo-section p {
+            font-size: 10px;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            margin: 0;
+            margin-top: 8px;
+        }
+
+        .header-status {
+            text-align: right;
+            font-size: 10px;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+        }
+
+        .header-status-value {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .header-status div {
+            margin: 4px 0;
+        }
+
+        /* Navigation */
+        nav {
+            display: flex;
+            gap: 0;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg);
+        }
+
+        nav button {
+            padding: 16px 24px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        nav button:hover {
+            color: var(--text);
+        }
+
+        nav button.active {
+            color: var(--text);
+            border-bottom: 2px solid var(--primary);
+        }
+
+        /* Main Content */
+        main {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1.7fr 1.3fr;
+            gap: 24px;
+            padding: 24px;
+            overflow: hidden;
+        }
+
+        /* Left Panel - Metrics */
+        aside {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        .metric-card {
+            border: 1px solid var(--border);
+            padding: 20px;
+            background: transparent;
+            text-align: center;
+        }
+
+        .metric-card.highlight {
+            border-color: var(--primary);
+            background: rgba(255, 0, 0, 0.05);
+        }
+
+        .metric-label {
+            font-size: 10px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+
+        .metric-value {
+            font-size: 32px;
+            font-weight: 700;
+            font-family: 'Courier New', monospace;
+            color: var(--text);
+        }
+
+        /* Center Panel - Live Log */
+        .log-section {
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--border);
+            background: transparent;
+            overflow: hidden;
+        }
+
+        .log-section h2 {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border);
+            margin: 0;
+        }
+
+        .log-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            line-height: 1.3;
+            max-height: 700px;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+            line-height: 1.4;
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-time {
+            color: var(--text-secondary);
+            margin-right: 8px;
+            font-size: 10px;
+        }
+
+        .log-file {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .log-status {
+            color: var(--text-secondary);
+            word-break: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        .log-success {
+            color: var(--success);
+        }
+        
+        .log-warning {
+            color: #ffaa00;
+        }
+
+        /* Right Panel - Detonations */
+        .detonations-section {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            overflow-y: auto;
+            max-height: 700px;
+        }
+
+        .detonations-section h2 {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+            color: var(--text);
+        }
+
+        .detonation-card {
+            border: 1px solid var(--border);
+            padding: 12px;
+            margin-bottom: 10px;
+            background: transparent;
+            font-size: 9px;
+            font-family: 'Courier New', monospace;
+            line-height: 1.3;
+        }
+
+        .detonation-card.malicious {
+            border-color: var(--primary);
+        }
+
+        .detonation-card.suspicious {
+            border-color: #ffaa00;
+        }
+
+        .detonation-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .detonation-name {
+            color: var(--text-secondary);
+            font-size: 8px;
+            flex: 1;
+            min-width: 50%;
+            word-break: break-word;
+        }
+
+        .detonation-verdict {
+            font-weight: 600;
+            font-size: 9px;
+            white-space: nowrap;
+        }
+
+        .detonation-verdict.malicious {
+            color: var(--primary);
+        }
+
+        .detonation-verdict.suspicious {
+            color: #ffaa00;
+        }
+
+        .detonation-verdict.clean {
+            color: var(--success);
+        }
+
+        .detonation-info {
+            color: var(--text-secondary);
+            line-height: 1.3;
+            font-size: 8px;
+        }
+
+        .detonation-info div {
+            margin: 2px 0;
+        }
+
+        /* Footer */
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 16px 24px;
+            font-size: 10px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            text-align: center;
+            color: var(--text-secondary);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--text-secondary);
+            border-radius: 0;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text);
+        }
+
+        /* Content Tabs */
+        .content {
+            display: none;
+        }
+
+        .content.active {
+            display: contents;
+        }
+
+        /* Config Section */
+        .config-content {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            padding: 24px;
+            overflow-y: auto;
+        }
+
+        .config-section {
+            border: 1px solid var(--border);
+            padding: 24px;
+            background: transparent;
+        }
+
+        .config-section h3 {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+            margin-top: 0;
+            color: var(--text);
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 10px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--text);
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--text-secondary);
+        }
+        
+        .form-group small {
+            color: var(--text-secondary);
+            font-size: 9px;
+            margin-top: 4px;
+            display: block;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text);
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            border-color: var(--text-secondary);
+        }
+
+        button.btn-primary {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        button.btn-primary:hover {
+            border-color: var(--primary);
+            background: rgba(255, 0, 0, 0.05);
+        }
+
+        button.btn-success {
+            border-color: var(--success);
+            color: var(--success);
+        }
+
+        button.btn-success:hover {
+            border-color: var(--success);
+            background: rgba(0, 255, 0, 0.05);
+        }
+
+        /* Monitoring & Logs Full Width */
+        .monitoring-content,
+        .logs-content {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            padding: 24px;
+            overflow-y: auto;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+        }
+
+        .stat-card {
+            border: 1px solid var(--border);
+            padding: 20px;
+            background: transparent;
+            text-align: center;
+        }
+
+        .stat-card.infected {
+            border-color: var(--primary);
+        }
+
+        .stat-label {
+            font-size: 10px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+
+        .stat-value {
+            font-size: 36px;
+            font-weight: 700;
+            font-family: 'Courier New', monospace;
+        }
+
+        .logs-container {
+            border: 1px solid var(--border);
+            padding: 16px;
+            background: transparent;
+            max-height: none;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            line-height: 1.3;
+        }
+
+        .log-line {
+            margin-bottom: 6px;
+            word-break: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .log-error {
+            color: var(--primary);
+        }
+
+        .log-success {
+            color: var(--success);
+        }
+        
+        .log-warning {
+            color: #ffaa00;
+        }
+        
+        .log-phase {
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        /* Responsive */
+        @media (max-width: 1400px) {
+            main {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            aside,
+            .log-section,
+            .detonations-section {
+                max-height: 50vh;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <header>
+            <div class="header-left">
+                <div class="logo-section">
+                    <img src="logo/calma.png" alt="CALMA Logo" class="logo-image">
+                </div>
+            </div>
+            <div class="header-status">
+                <div>Status: <span class="header-status-value" id="statusValue">Idle</span></div>
+                <div>Last Update: <span id="lastUpdate">--:--:--</span></div>
+            </div>
+        </header>
+
+        <nav>
+            <button class="nav-btn active" data-tab="dashboard">Dashboard</button>
+            <button class="nav-btn" data-tab="config">Configuration</button>
+            <button class="nav-btn" data-tab="monitoring">Monitoring</button>
+            <button class="nav-btn" data-tab="logs">Logs</button>
+        </nav>
+
+        <main>
+            <div id="dashboard" class="content active">
+                <aside>
+                    <div class="metric-card">
+                        <div class="metric-label">Emails Today</div>
+                        <div class="metric-value" id="emailsToday">0</div>
+                    </div>
+                    <div class="metric-card highlight">
+                        <div class="metric-label">Malicious Files</div>
+                        <div class="metric-value" id="maliciousFiles">0</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Clean Files</div>
+                        <div class="metric-value" id="cleanFiles">0</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Sandbox Queue</div>
+                        <div class="metric-value" id="queueSize">0</div>
+                    </div>
+                </aside>
+
+                <section class="log-section">
+                    <h2>Live Analysis Log</h2>
+                    <div class="log-content" id="liveLog">
+                        <div class="log-entry">
+                            <span class="log-status">Carregando eventos...</span>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="detonations-section">
+                    <h2>Recent Detonations</h2>
+                    <div id="detonationsList">
+                        <div class="detonation-card">
+                            <div class="detonation-header">
+                                <span class="detonation-name">Carregando...</span>
+                            </div>
+                            <div class="detonation-info">
+                                <div>Nenhuma análise recente</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <div id="config" class="content">
+                <div class="config-content">
+                    <div class="config-section">
+                        <h3>Email Settings</h3>
+                        <div class="form-group">
+                            <label for="emailUser">Email Address</label>
+                            <input type="email" id="emailUser" placeholder="your.email@gmail.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="emailPass">App Password</label>
+                            <input type="password" id="emailPass" placeholder="xxxx xxxx xxxx xxxx">
+                        </div>
+                        <div class="form-group">
+                            <label for="emailServer">IMAP Server</label>
+                            <input type="text" id="emailServer" value="imap.gmail.com">
+                        </div>
+                        <button onclick="testConnection()" class="btn-primary">Test Connection</button>
+                        <div id="testResult" style="margin-top: 12px; font-size: 11px; color: var(--text-secondary);"></div>
+                    </div>
+
+                    <div class="config-section">
+                        <h3>Gmail Labels</h3>
+                        <div class="form-group">
+                            <label for="labelClean">Clean Files Label</label>
+                            <input type="text" id="labelClean" placeholder="LIMPOS">
+                        </div>
+                        <div class="form-group">
+                            <label for="labelInfected">Infected Label</label>
+                            <input type="text" id="labelInfected" placeholder="INFETADOS">
+                        </div>
+                        <div class="form-group">
+                            <label for="labelSuspicious">Suspicious Label</label>
+                            <input type="text" id="labelSuspicious" placeholder="SUSPEITOS">
+                        </div>
+                    </div>
+
+                    <div class="config-section">
+                        <h3>Cron Schedule</h3>
+                        
+                        <div class="form-group">
+                            <label>Interval Type</label>
+                            <select id="cronIntervalUnit" onchange="updateCronPreview()">
+                                <option value="seconds">Every X Seconds</option>
+                                <option value="minutes" selected>Every X Minutes</option>
+                                <option value="hours">Every X Hours</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="cronIntervalValue">Interval Value</label>
+                            <input type="number" id="cronIntervalValue" min="1" max="59" value="5" onchange="updateCronPreview()" oninput="updateCronPreview()">
+                            <small style="color: var(--text-secondary); font-size: 9px; margin-top: 4px; display: block;">
+                                <span id="cronRangeInfo">1-59 minutes</span>
+                            </small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label style="color: var(--success);">Preview</label>
+                            <div style="padding: 12px; border: 1px solid var(--border); background: rgba(0, 255, 0, 0.02); color: var(--success); font-family: 'Courier New', monospace; font-size: 10px; word-break: break-all;">
+                                <div id="cronPreviewText">Every 5 minutes</div>
+                                <div style="font-size: 9px; color: var(--text-secondary); margin-top: 8px;">
+                                    <span id="cronCronExpression"></span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="cronEnabled">Enable Cron</label>
+                            <select id="cronEnabled">
+                                <option value="false">Disabled</option>
+                                <option value="true">Enabled</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="config-section">
+                        <h3>Advanced Settings</h3>
+                        <div class="form-group">
+                            <label for="maxFileSize">Max File Size (bytes)</label>
+                            <input type="number" id="maxFileSize" value="10485760">
+                        </div>
+                        <div class="form-group">
+                            <label for="scanTimeout">Scan Timeout (seconds)</label>
+                            <input type="number" id="scanTimeout" value="300">
+                        </div>
+                        <div class="form-group">
+                            <label for="logRetention">Keep Logs (days)</label>
+                            <input type="number" id="logRetention" value="7">
+                        </div>
+                    </div>
+                </div>
+
+                <div style="padding: 24px;">
+                    <div class="button-group">
+                        <button onclick="saveConfig()" class="btn-success">Save Configuration</button>
+                        <button onclick="loadConfig()">Reload</button>
+                    </div>
+                    <div id="configMessage" style="margin-top: 16px; font-size: 11px; color: var(--text-secondary);"></div>
+                </div>
+            </div>
+
+            <div id="monitoring" class="content">
+                <div class="monitoring-content">
+                    <div style="display: flex; gap: 12px; align-items: center;">
+                        <button onclick="startMonitoring()" class="btn-primary">Start Monitoring</button>
+                        <button onclick="stopMonitoring()">Stop</button>
+                        <button onclick="clearOldLogs()">Clear Old Logs</button>
+                        <div id="vmStatus" style="margin-left: auto; padding: 8px 16px; border-radius: 4px; font-size: 11px; font-weight: 600; display: none;"></div>
+                    </div>
+
+                    <div>
+                        <h3 style="font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 16px;">Live Statistics</h3>
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-label">Clean Files</div>
+                                <div class="stat-value" id="monClean">0</div>
+                            </div>
+                            <div class="stat-card infected">
+                                <div class="stat-label">Infected Files</div>
+                                <div class="stat-value" id="monInfected">0</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Suspicious Files</div>
+                                <div class="stat-value" id="monSuspicious">0</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Pending Files</div>
+                                <div class="stat-value" id="monPending">0</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 24px;">
+                        <h3 style="font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 16px;">Recent Analyses Summary</h3>
+                        <div id="analysesListMonitoring" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px;">
+                            <div style="border: 1px solid var(--border); padding: 12px; text-align: center; color: var(--text-secondary); font-size: 11px;">
+                                Loading analyses...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="logs" class="content">
+                <div class="logs-content">
+                    <button onclick="refreshLogs()" class="btn-primary">Refresh Logs</button>
+                    <div class="logs-container" id="logsContainer">
+                        <div class="log-line log-status">Loading system logs...</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 24px;">
+                <div>CALMA - Chaos Engine for Email Threat Analysis</div>
+                <div id="footerStats" style="font-size: 9px; opacity: 0.7;">
+                    <span id="footerClean"></span> Clean |
+                    <span id="footerInfected"></span> Infected |
+                    <span id="footerSuspicious"></span> Suspicious
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        const API_BASE = '/api';
+        let currentTab = 'dashboard';
+        let monitoringActive = false;
+        let monitoringInterval = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            setupNavigation();
+            loadConfig();
+            refreshDashboard();
+            refreshLogs();
+            loadRecentDetonations();
+        });
+
+        // Navigation
+        function setupNavigation() {
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const tab = btn.getAttribute('data-tab');
+                    switchTab(tab);
+                });
+            });
+        }
+
+        function switchTab(tabName) {
+            currentTab = tabName;
+            
+            // Update nav buttons
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+
+            // Update content
+            document.querySelectorAll('.content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(tabName).classList.add('active');
+            
+            // Load specific content for tabs
+            if (tabName === 'monitoring') {
+                loadAnalysesMonitoring();
+                refreshDashboard();
+            } else if (tabName === 'logs') {
+                refreshLogs();
+            }
+        }
+
+        // Load Configuration
+        async function loadConfig() {
+            try {
+                const response = await fetch(`${API_BASE}/config`);
+                const config = await response.json();
+
+                document.getElementById('emailUser').value = config.email_user || '';
+                document.getElementById('emailPass').value = config.email_pass || '';
+                document.getElementById('emailServer').value = config.email_server || 'imap.gmail.com';
+                document.getElementById('labelClean').value = config.labels?.clean || 'LIMPOS';
+                document.getElementById('labelInfected').value = config.labels?.infected || 'INFETADOS';
+                document.getElementById('labelSuspicious').value = config.labels?.suspicious || 'SUSPEITOS';
+                
+                // Processar intervalo de cron - pode vir em diferentes formatos
+                const cronInterval = config.cron_interval || 5;
+                const cronUnit = config.cron_interval_unit || 'minutes';
+                
+                document.getElementById('cronIntervalValue').value = cronInterval;
+                document.getElementById('cronIntervalUnit').value = cronUnit;
+                
+                document.getElementById('cronEnabled').value = config.cron_enabled ? 'true' : 'false';
+                document.getElementById('maxFileSize').value = config.max_file_size || 10485760;
+                document.getElementById('scanTimeout').value = config.scan_timeout || 300;
+                document.getElementById('logRetention').value = config.keep_logs_days || 7;
+                
+                // Atualizar preview
+                updateCronPreview();
+            } catch (error) {
+                console.error('Error loading config:', error);
+            }
+        }
+        
+        // Atualizar preview de cron e intervalo de valores
+        function updateCronPreview() {
+            const unit = document.getElementById('cronIntervalUnit').value;
+            const value = parseInt(document.getElementById('cronIntervalValue').value) || 1;
+            
+            // Atualizar range de acordo com a unidade
+            const input = document.getElementById('cronIntervalValue');
+            const rangeInfo = document.getElementById('cronRangeInfo');
+            
+            if (unit === 'seconds') {
+                input.max = '59';
+                rangeInfo.textContent = '1-59 seconds';
+            } else if (unit === 'minutes') {
+                input.max = '59';
+                rangeInfo.textContent = '1-59 minutes';
+            } else if (unit === 'hours') {
+                input.max = '23';
+                rangeInfo.textContent = '1-23 hours';
+            }
+            
+            // Validar valor
+            if (parseInt(input.value) > parseInt(input.max)) {
+                input.value = input.max;
+            }
+            if (parseInt(input.value) < 1) {
+                input.value = 1;
+            }
+            
+            // Atualizar preview textual
+            let previewText = '';
+            if (value === 1) {
+                previewText = `Every ${unit.slice(0, -1)}`; // "Every second/minute/hour"
+            } else {
+                previewText = `Every ${value} ${unit}`;
+            }
+            document.getElementById('cronPreviewText').textContent = previewText;
+            
+            // Gerar expressão cron (formato: "*/N * * * * *" para minutos, etc)
+            let cronExpr = '';
+            if (unit === 'seconds') {
+                cronExpr = `*/${value} * * * * *`; // A cada N segundos
+                cronExpr += ` (Every ${value} second${value > 1 ? 's' : ''})`;
+            } else if (unit === 'minutes') {
+                cronExpr = `*/${value} * * * *`; // A cada N minutos
+                cronExpr += ` (Every ${value} minute${value > 1 ? 's' : ''})`;
+            } else if (unit === 'hours') {
+                cronExpr = `0 */${value} * * *`; // A cada N horas
+                cronExpr += ` (Every ${value} hour${value > 1 ? 's' : ''})`;
+            }
+            document.getElementById('cronCronExpression').textContent = cronExpr;
+        }
+
+        // Save Configuration
+        async function saveConfig() {
+            const config = {
+                email_user: document.getElementById('emailUser').value,
+                email_pass: document.getElementById('emailPass').value,
+                email_server: document.getElementById('emailServer').value,
+                labels: {
+                    clean: document.getElementById('labelClean').value,
+                    infected: document.getElementById('labelInfected').value,
+                    suspicious: document.getElementById('labelSuspicious').value
+                },
+                cron_enabled: document.getElementById('cronEnabled').value === 'true',
+                cron_interval: parseInt(document.getElementById('cronIntervalValue').value),
+                cron_interval_unit: document.getElementById('cronIntervalUnit').value,
+                max_file_size: parseInt(document.getElementById('maxFileSize').value),
+                scan_timeout: parseInt(document.getElementById('scanTimeout').value),
+                keep_logs_days: parseInt(document.getElementById('logRetention').value)
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/config`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+                const result = await response.json();
+                const msgDiv = document.getElementById('configMessage');
+                msgDiv.textContent = result.success ? 'Configuration saved successfully' : 'Error saving configuration';
+                setTimeout(() => msgDiv.textContent = '', 3000);
+            } catch (error) {
+                document.getElementById('configMessage').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        // Test Connection
+        async function testConnection() {
+            const resultDiv = document.getElementById('testResult');
+            resultDiv.textContent = 'Testing connection...';
+
+            try {
+                const response = await fetch(`${API_BASE}/test-connection`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: document.getElementById('emailUser').value,
+                        password: document.getElementById('emailPass').value
+                    })
+                });
+                const result = await response.json();
+                resultDiv.textContent = result.success ? 'Connection successful' : 'Connection failed: ' + result.message;
+                setTimeout(() => resultDiv.textContent = '', 3000);
+            } catch (error) {
+                resultDiv.textContent = 'Error: ' + error.message;
+            }
+        }
+
+        // Refresh Dashboard
+        async function refreshDashboard() {
+            try {
+                const response = await fetch(`${API_BASE}/status`);
+                const data = await response.json();
+
+                const totalEmails = (data.stats?.clean || 0) + (data.stats?.infected || 0) + (data.stats?.suspicious || 0);
+                document.getElementById('emailsToday').textContent = totalEmails;
+                document.getElementById('maliciousFiles').textContent = data.stats?.infected || 0;
+                document.getElementById('cleanFiles').textContent = data.stats?.clean || 0;
+                document.getElementById('queueSize').textContent = data.stats?.pending || 0;
+
+                document.getElementById('monClean').textContent = data.stats?.clean || 0;
+                document.getElementById('monInfected').textContent = data.stats?.infected || 0;
+                document.getElementById('monSuspicious').textContent = data.stats?.suspicious || 0;
+                document.getElementById('monPending').textContent = data.stats?.pending || 0;
+                
+                // Atualizar footer
+                document.getElementById('footerClean').textContent = data.stats?.clean || 0;
+                document.getElementById('footerInfected').textContent = data.stats?.infected || 0;
+                document.getElementById('footerSuspicious').textContent = data.stats?.suspicious || 0;
+
+                const statusElement = document.getElementById('statusValue');
+                statusElement.textContent = data.cron_enabled ? 'Monitoring' : 'Idle';
+                statusElement.style.color = data.cron_enabled ? 'var(--success)' : 'var(--primary)';
+                
+                document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+                
+                // Load live logs
+                loadLiveLog();
+                loadRecentDetonations();
+            } catch (error) {
+                console.error('Error refreshing dashboard:', error);
+            }
+        }
+
+        // Load Live Log from API - Mostrar muito mais detalhes e eventos
+        async function loadLiveLog() {
+            try {
+                const response = await fetch(`${API_BASE}/logs?lines=800`);
+                const data = await response.json();
+                const logs = data.logs || [];
+                
+                console.log('Total logs received:', logs.length);
+                
+                // Filtrar eventos relevantes - expandir keywords significativamente
+                const relevantLogs = logs.filter(log => {
+                    const logLower = log.toLowerCase();
+                    const keywords = [
+                        'classificado',     // Classificações de arquivos
+                        'limpo', 'clean',   // Arquivos limpos
+                        'infetado', 'infected', // Arquivos maliciosos
+                        'suspeito', 'suspicious', // Arquivos suspeitos
+                        'score',            // Scores de análise
+                        'movido', 'moved', 'moving', // Movimentos de arquivos
+                        'success',          // Operações bem-sucedidas
+                        'anexo', 'attachment', 'extract', // Extração de anexos
+                        'email',            // Eventos de email
+                        'fase', 'phase',    // Fases de execução
+                        'iniciando', 'iniciado', 'starting',
+                        'análise', 'analysis',
+                        'extração', 'extraction',
+                        'encontrado',
+                        'processado', 'processed',
+                        'gerado', 'generated',
+                        'concluído', 'completed'
+                    ];
+                    return keywords.some(keyword => logLower.includes(keyword));
+                });
+                
+                console.log('Relevant logs found:', relevantLogs.length);
+                
+                // Mostrar últimas 35 entradas (aumentado de 25)
+                const entriesToShow = relevantLogs.slice(-35);
+                
+                const logHtml = entriesToShow.map((log, index) => {
+                    const isError = log.includes('INFETADO') || log.includes('INFECTED') || log.includes('[ERROR]');
+                    const isSuccess = log.includes('[SUCCESS]') || log.includes('LIMPO') || log.includes('Clean') || log.includes('Classificado');
+                    const isSuspicious = log.includes('SUSPEITO') || log.includes('Suspicious');
+                    const isPhase = log.includes('[PHASE]');
+                    
+                    let colorClass = 'log-status';
+                    if (isError) colorClass += ' log-file';
+                    else if (isSuccess) colorClass += ' log-success';
+                    else if (isSuspicious) colorClass += ' log-warning';
+                    
+                    // Destacar visualmente logs de classificação
+                    const borderStyle = isSuccess && log.includes('Classificado') 
+                        ? 'border-left: 3px solid var(--primary);' 
+                        : '';
+                    
+                    return `<div class="log-entry" style="padding-left: 12px; ${borderStyle}">
+                        <span class="${colorClass}">${escapeHtml(log)}</span>
+                    </div>`;
+                }).join('');
+
+                document.getElementById('liveLog').innerHTML = logHtml || '<div class="log-entry"><span class="log-status">Nenhum evento recente</span></div>';
+            } catch (error) {
+                console.error('Error loading live log:', error);
+                document.getElementById('liveLog').innerHTML = '<div class="log-entry"><span class="log-status">Erro ao carregar logs</span></div>';
+            }
+        }
+
+        // Load Recent Detonations - Versão melhorada com API estruturada
+        async function loadRecentDetonations() {
+            try {
+                // Primeira tentativa: usar a API estruturada de análises
+                let response = await fetch(`${API_BASE}/analyses?limit=50`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const analyses = data.analyses || [];
+                    
+                    console.log('Analyses from API:', analyses.length);
+                    
+                    if (analyses.length > 0) {
+                        const detonationsHtml = analyses.slice(-12).reverse().map(a => `
+                            <div class="detonation-card ${a.verdict === 'Malicious' ? 'malicious' : (a.verdict === 'Suspicious' ? 'suspicious' : '')}">
+                                <div class="detonation-header">
+                                    <span class="detonation-name">${escapeHtml(a.filename)}</span>
+                                    <span class="detonation-verdict ${a.verdict.toLowerCase()}">${a.verdict}</span>
+                                </div>
+                                <div class="detonation-info">
+                                    <div>Score: ${a.score}/100</div>
+                                    <div>Time: ${a.timestamp}</div>
+                                    <div>Status: ${a.status}</div>
+                                </div>
+                            </div>
+                        `).join('');
+
+                        document.getElementById('detonationsList').innerHTML = detonationsHtml;
+                        return;
+                    }
+                }
+                
+                // Fallback: parsear a partir dos logs
+                response = await fetch(`${API_BASE}/logs?lines=500`);
+                const data = await response.json();
+                const logs = data.logs || [];
+                
+                console.log('Total logs for detonations:', logs.length);
+                
+                // Parse detonation info from logs
+                const detonations = [];
+                logs.forEach(log => {
+                    if (log.includes('Classificado:')) {
+                        const isMalicious = log.includes('INFETADO');
+                        const isSuspicious = log.includes('SUSPEITO') && !log.includes('INFETADO');
+                        const verdict = isMalicious ? 'Malicious' : (isSuspicious ? 'Suspicious' : 'Clean');
+                        
+                        let nameMatch = log.match(/Classificado:\s*([^\s]+)/);
+                        if (!nameMatch) {
+                            nameMatch = log.match(/(\d{8}_\d{6}_\d+_[^\s\)]+)/);
+                        }
+                        const name = nameMatch ? nameMatch[1] : 'unknown';
+                        
+                        const scoreMatch = log.match(/Score:\s*(\d+)/);
+                        const score = scoreMatch ? scoreMatch[1] : '--';
+                        
+                        const timeMatch = log.match(/\[(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})\]/);
+                        const timestamp = timeMatch ? timeMatch[1] : 'unknown';
+                        
+                        console.log('Found detonation:', {name, verdict, score, timestamp});
+                        
+                        detonations.push({
+                            name: name,
+                            verdict: verdict,
+                            score: score,
+                            timestamp: timestamp
+                        });
+                    }
+                });
+
+                console.log('Total detonations parsed:', detonations.length);
+
+                if (detonations.length === 0) {
+                    document.getElementById('detonationsList').innerHTML = '<div class="detonation-card"><div class="detonation-header"><span class="detonation-name">Aguardando análises...</span></div><div class="detonation-info"><div>Nenhuma detonação recente</div></div></div>';
+                    return;
+                }
+
+                const detonationsHtml = detonations.slice(-12).reverse().map(d => `
+                    <div class="detonation-card ${d.verdict === 'Malicious' ? 'malicious' : (d.verdict === 'Suspicious' ? 'suspicious' : '')}">
+                        <div class="detonation-header">
+                            <span class="detonation-name">${escapeHtml(d.name)}</span>
+                            <span class="detonation-verdict ${d.verdict.toLowerCase()}">${d.verdict}</span>
+                        </div>
+                        <div class="detonation-info">
+                            <div>Score: ${d.score}/100</div>
+                            <div>Time: ${d.timestamp}</div>
+                            <div>Status: ${d.verdict === 'Malicious' ? 'INFETADO' : (d.verdict === 'Suspicious' ? 'SUSPEITO' : 'LIMPO')}</div>
+                        </div>
+                    </div>
+                `).join('');
+
+                document.getElementById('detonationsList').innerHTML = detonationsHtml;
+            } catch (error) {
+                console.error('Error loading detonations:', error);
+                document.getElementById('detonationsList').innerHTML = '<div class="detonation-card"><div class="detonation-header"><span class="detonation-name">Erro</span></div><div class="detonation-info"><div>Erro ao carregar detonações</div></div></div>';
+            }
+        }
+
+        async function startMonitoring() {
+            try {
+                const vmStatus = document.getElementById('vmStatus');
+                const vmCheckResponse = await fetch(`${API_BASE}/vm-check`);
+                const vmData = await vmCheckResponse.json();
+                
+                vmStatus.style.display = 'block';
+                if (vmData.is_vm) {
+                    vmStatus.textContent = `✓ ${vmData.vm_type}`;
+                    vmStatus.style.backgroundColor = '#10b981';
+                    vmStatus.style.color = 'white';
+                } else {
+                    vmStatus.textContent = '⚠ Sistema Físico - RISCO!';
+                    vmStatus.style.backgroundColor = '#ef4444';
+                    vmStatus.style.color = 'white';
+                    
+                    if (!confirm('AVISO: Sistema NÃO está em VM!\n\nIsso representa um RISCO DE SEGURANÇA.\n\nRecomenda-se executar apenas em máquinas virtuais.\n\nDeseja continuar mesmo assim?')) {
+                        vmStatus.style.display = 'none';
+                        return;
+                    }
+                }
+                
+                const config = await fetch(`${API_BASE}/config`).then(r => r.json());
+                const interval = config.cron_interval || 5;
+                const unit = config.cron_interval_unit || 'minutes';
+                
+                const response = await fetch(`${API_BASE}/cron/enable`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        interval: interval,
+                        interval_unit: unit
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    monitoringActive = true;
+                    monitoringInterval = setInterval(() => {
+                        refreshDashboard();
+                    }, 3000);
+                    refreshDashboard();
+                    
+                    let unitText = unit === 'seconds' ? 'segundo' : (unit === 'minutes' ? 'minuto' : 'hora');
+                    let intervalText = interval === 1 ? unitText : (interval + ' ' + unit);
+                    alert('Monitoramento ativado com sucesso! Intervalo: A cada ' + intervalText);
+                } else {
+                    vmStatus.style.display = 'none';
+                    alert('Erro ao ativar monitoramento: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error starting monitoring:', error);
+                document.getElementById('vmStatus').style.display = 'none';
+                alert('Erro ao iniciar monitoramento: ' + error.message);
+            }
+        }
+
+        async function stopMonitoring() {
+            try {
+                const response = await fetch(`${API_BASE}/cron/disable`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    monitoringActive = false;
+                    if (monitoringInterval) clearInterval(monitoringInterval);
+                    document.getElementById('vmStatus').style.display = 'none';
+                    refreshDashboard();
+                    alert('Monitoramento desativado com sucesso!');
+                } else {
+                    alert('Erro ao desativar monitoramento: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error stopping monitoring:', error);
+                alert('Erro ao parar monitoramento: ' + error.message);
+            }
+        }
+
+        async function refreshLogs() {
+            try {
+                const response = await fetch(`${API_BASE}/logs?lines=300`);
+                const data = await response.json();
+                const container = document.getElementById('logsContainer');
+                
+                if (!data.logs || data.logs.length === 0) {
+                    container.innerHTML = '<div class="log-line">No logs available</div>';
+                    return;
+                }
+                
+                const logsHtml = data.logs.map(log => {
+                    const isError = log.includes('[ERROR]') || log.includes('Error') || log.includes('INFETADO');
+                    const isSuccess = log.includes('[SUCCESS]') || log.includes('LIMPO') || log.includes('Clean');
+                    const isWarning = log.includes('SUSPEITO') || log.includes('[WARN]');
+                    const isPhase = log.includes('[PHASE]');
+                    
+                    let classes = 'log-line';
+                    if (isError) classes += ' log-error';
+                    else if (isSuccess) classes += ' log-success';
+                    else if (isWarning) classes += ' log-warning';
+                    else if (isPhase) classes += ' log-phase';
+                    
+                    return `<div class="${classes}">${escapeHtml(log)}</div>`;
+                }).join('');
+                
+                container.innerHTML = logsHtml;
+            } catch (error) {
+                document.getElementById('logsContainer').innerHTML = '<div class="log-line log-error">Error loading logs</div>';
+            }
+        }
+
+        // Clear Old Logs
+        async function clearOldLogs() {
+            try {
+                await fetch(`${API_BASE}/logs/clear`, { method: 'POST' });
+                refreshLogs();
+            } catch (error) {
+                console.error('Error clearing logs:', error);
+            }
+        }
+        
+        // Load Recent Analyses for Monitoring Tab
+        async function loadAnalysesMonitoring() {
+            try {
+                const response = await fetch(`${API_BASE}/analyses?limit=8`);
+                const data = await response.json();
+                const analyses = data.analyses || [];
+                
+                if (analyses.length === 0) {
+                    document.getElementById('analysesListMonitoring').innerHTML = 
+                        '<div style="grid-column: 1/-1; border: 1px solid var(--border); padding: 12px; text-align: center; color: var(--text-secondary); font-size: 11px;">No analyses yet</div>';
+                    return;
+                }
+                
+                const analysesHtml = analyses.reverse().map(a => {
+                    const verdictColor = a.verdict === 'Malicious' ? 'var(--primary)' : 
+                                         (a.verdict === 'Suspicious' ? '#ffaa00' : 'var(--success)');
+                    
+                    return `
+                        <div style="border: 1px solid var(--border); padding: 12px; border-left: 3px solid ${verdictColor};">
+                            <div style="color: ${verdictColor}; font-weight: 600; font-size: 10px; margin-bottom: 4px;">${a.verdict}</div>
+                            <div style="color: var(--text-secondary); font-size: 8px; word-break: break-word; margin-bottom: 4px;">${escapeHtml(a.filename)}</div>
+                            <div style="color: var(--text-secondary); font-size: 8px;">Score: ${a.score}/100</div>
+                            <div style="color: var(--text-secondary); font-size: 8px;">${a.timestamp}</div>
+                        </div>
+                    `;
+                }).join('');
+                
+                document.getElementById('analysesListMonitoring').innerHTML = analysesHtml;
+            } catch (error) {
+                console.error('Error loading monitoring analyses:', error);
+            }
+        }
+
+        // Generate Mock Data
+        function generateMockData() {
+            // Data will be loaded from API in real-time
+            // No mock data needed - loaded on tab switch and dashboard refresh
+        }
+
+        // Utility
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
