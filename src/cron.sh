@@ -5,7 +5,8 @@ echo ""
 
 INTERVALO="${1:-5}"
 
-CALMA_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Diretório raiz do projeto (pai do config)
+CALMA_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CALMA_SCRIPT="${CALMA_DIR}/calma.sh"
 CRON_LOG="${CALMA_DIR}/logs/cron.log"
 

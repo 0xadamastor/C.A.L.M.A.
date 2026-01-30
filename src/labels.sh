@@ -1,8 +1,9 @@
 #!/bin/bash
 # Script para criar as labels necessárias no Gmail
 
-EMAIL_USER="email@gmail.com"
-EMAIL_PASS="xxxx xxxx xxxx xxxx"
+# Carregar configurações
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "${BASE_DIR}/config/config.sh"
 
 echo "Criando labels no Gmail..."
 

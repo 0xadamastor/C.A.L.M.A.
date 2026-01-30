@@ -15,31 +15,48 @@ import re
 from pathlib import Path
 from functools import wraps
 import logging
+from dotenv import load_dotenv
 
-app = Flask(__name__)
-app.secret_key = 'calma-secure-key-2025'
+# Carregar configurações do arquivo .env
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # Diretório pai (raiz)
+ENV_FILE = os.path.join(BASE_DIR, '.env')
+
+if not os.path.exists(ENV_FILE):
+    print("❌ Arquivo .env não encontrado!")
+    print("Execute './setup.sh' primeiro para configurar o sistema.")
+    exit(1)
+
+load_dotenv(ENV_FILE)
+
+app = Flask(__name__, 
+           template_folder=os.path.join(BASE_DIR, 'web', 'templates'),
+           static_folder=os.path.join(BASE_DIR, 'assets'))
+
+# Usar chave secreta do .env
+app.secret_key = os.getenv('FLASK_SECRET_KEY', 'calma-fallback-key')
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOGS_DIR = os.path.join(BASE_DIR, 'logs')
-DATA_DIR = os.path.join(BASE_DIR, 'dados')
+DATA_DIR = os.path.join(BASE_DIR, 'data')
 LOGO_DIR = os.path.join(BASE_DIR, 'logo')
 CONFIG_FILE = os.path.join(BASE_DIR, 'calma_config.json')
 
 os.makedirs(LOGS_DIR, exist_ok=True)
 os.makedirs(DATA_DIR, exist_ok=True)
+
+# Carregar defaults do .env
 DEFAULT_CONFIG = {
-    'email_user': '',
-    'email_pass': '',
-    'email_server': 'imap.gmail.com',
-    'email_port': 993,
-    'sandbox_enabled': False,
-    'sandbox_url': 'http://localhost:8090',
-    'sandbox_api_key': '',
-    'max_file_size': 10485760,
-    'scan_timeout': 300,
+    'email_user': os.getenv('EMAIL_USER', ''),
+    'email_pass': os.getenv('EMAIL_PASS', ''),
+    'email_server': os.getenv('EMAIL_SERVER', 'imap.gmail.com'),
+    'email_port': int(os.getenv('EMAIL_PORT', 993)),
+    'sandbox_enabled': os.getenv('SANDBOX_ENABLED', 'false').lower() == 'true',
+    'sandbox_url': os.getenv('SANDBOX_URL', 'http://localhost:8090'),
+    'sandbox_api_key': os.getenv('SANDBOX_API_KEY', ''),
+    'max_file_size': int(os.getenv('MAX_FILE_SIZE', 10485760)),
+    'scan_timeout': int(os.getenv('SCAN_TIMEOUT', 300)),
     'hash_algorithm': 'sha256',
     'enable_metadata': True,
     'keep_logs_days': 7,

@@ -1,27 +1,23 @@
 #!/bin/bash
 
-EMAIL_USER="email@gmail.com"
-EMAIL_PASS="xxxx xxxx xxxx xxxx"
-EMAIL_SERVER="imap.gmail.com"
-EMAIL_PORT="993"
-
-SANDBOX_ENABLED="false"
-SANDBOX_URL="http://localhost:8090"
-SANDBOX_API_KEY=""
+# C.A.L.M.A. - Sistema Automático de Análise de Anexos
 
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Carregar configurações
+source "${BASE_DIR}/config/config.sh"
+
+# Diretórios de trabalho
 LOGS_DIR="${BASE_DIR}/logs"
-DATA_DIR="${BASE_DIR}/dados"
+DATA_DIR="${BASE_DIR}/data"
 EMAIL_ATTACHMENTS_DIR="${DATA_DIR}/anexos_processados"
 PENDING_DIR="${EMAIL_ATTACHMENTS_DIR}/a_analisar"
 CLEAN_DIR="${EMAIL_ATTACHMENTS_DIR}/limpos"
 INFECTED_DIR="${EMAIL_ATTACHMENTS_DIR}/infetados"
 QUARANTINE_DIR="${DATA_DIR}/quarentena"
 
-MAX_FILE_SIZE="10485760"
-SCAN_TIMEOUT="300"
+# Configurações adicionais
 KEEP_LOGS_DAYS="7"
-
 HASH_ALGORITHM="sha256"
 ENABLE_METADATA="true"
 
