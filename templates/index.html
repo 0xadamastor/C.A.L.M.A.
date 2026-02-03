@@ -529,6 +529,79 @@
             font-weight: 500;
         }
 
+        /* Clean Emails Styles */
+        .clean-emails-info {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid var(--border);
+            background: rgba(0, 255, 0, 0.05);
+        }
+
+        .clean-emails-info p {
+            font-size: 12px;
+            color: var(--success);
+            margin: 0;
+        }
+
+        .clean-emails-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .clean-email-item {
+            border: 1px solid var(--border);
+            padding: 15px;
+            background: rgba(0, 255, 0, 0.02);
+            transition: all 0.2s ease;
+        }
+
+        .clean-email-item:hover {
+            border-color: var(--success);
+            background: rgba(0, 255, 0, 0.05);
+        }
+
+        .email-loading {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 12px;
+            padding: 20px;
+        }
+
+        .email-filename {
+            font-weight: 600;
+            font-size: 12px;
+            color: var(--success);
+            margin-bottom: 8px;
+        }
+
+        .email-details {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin: 4px 0;
+        }
+
+        .email-details strong {
+            color: var(--text);
+        }
+
+        .email-meta {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+            font-size: 10px;
+            border-top: 1px solid var(--border);
+            padding-top: 10px;
+        }
+
+        .email-meta-item {
+            display: flex;
+            justify-content: space-between;
+        }
+
         /* Responsive */
         @media (max-width: 1400px) {
             main {
@@ -549,7 +622,7 @@
         <header>
             <div class="header-left">
                 <div class="logo-section">
-                    <img src="logo/calma.png" alt="CALMA Logo" class="logo-image">
+                    <img src="/assets/calma.png" alt="CALMA Logo" class="logo-image">
                 </div>
             </div>
             <div class="header-status">
@@ -560,6 +633,7 @@
 
         <nav>
             <button class="nav-btn active" data-tab="dashboard">Dashboard</button>
+            <button class="nav-btn" data-tab="clean-emails">Clean Emails</button>
             <button class="nav-btn" data-tab="config">Configuration</button>
             <button class="nav-btn" data-tab="monitoring">Monitoring</button>
             <button class="nav-btn" data-tab="logs">Logs</button>
@@ -608,6 +682,22 @@
                         </div>
                     </div>
                 </section>
+            </div>
+
+            <div id="clean-emails" class="content">
+                <div class="config-content">
+                    <div class="config-section">
+                        <h2>Clean Emails</h2>
+                        <div class="clean-emails-info">
+                            <p>Total Clean Emails: <span id="cleanEmailsCount">0</span></p>
+                        </div>
+                        <div id="cleanEmailsList" class="clean-emails-list">
+                            <div class="clean-email-item">
+                                <div class="email-loading">Carregando emails limpos...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div id="config" class="content">
@@ -788,6 +878,7 @@
             refreshDashboard();
             refreshLogs();
             loadRecentDetonations();
+            loadCleanEmails();
         });
 
         // Navigation
@@ -821,6 +912,8 @@
                 refreshDashboard();
             } else if (tabName === 'logs') {
                 refreshLogs();
+            } else if (tabName === 'clean-emails') {
+                loadCleanEmails();
             }
         }
 
@@ -1162,6 +1255,61 @@
             } catch (error) {
                 console.error('Error loading detonations:', error);
                 document.getElementById('detonationsList').innerHTML = '<div class="detonation-card"><div class="detonation-header"><span class="detonation-name">Erro</span></div><div class="detonation-info"><div>Erro ao carregar detonações</div></div></div>';
+            }
+        }
+
+        async function loadCleanEmails() {
+            try {
+                const response = await fetch(`${API_BASE}/clean-emails?limit=100`);
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch clean emails');
+                }
+
+                const data = await response.json();
+                const cleanEmails = data.clean_emails || [];
+                const total = data.total || 0;
+
+                document.getElementById('cleanEmailsCount').textContent = total;
+
+                if (cleanEmails.length === 0) {
+                    document.getElementById('cleanEmailsList').innerHTML = '<div class="email-loading">Nenhum email limpo encontrado</div>';
+                    return;
+                }
+
+                const emailsHtml = cleanEmails.map(email => `
+                    <div class="clean-email-item">
+                        <div class="email-filename">📧 ${escapeHtml(email.filename)}</div>
+                        <div class="email-details">
+                            <strong>Sender:</strong> ${escapeHtml(email.sender)}
+                        </div>
+                        <div class="email-details">
+                            <strong>Subject:</strong> ${escapeHtml(email.subject)}
+                        </div>
+                        <div class="email-details">
+                            <strong>Score:</strong> ${email.score}/${email.max_score}
+                        </div>
+                        <div class="email-meta">
+                            <div class="email-meta-item">
+                                <span>Email ID:</span>
+                                <span>${escapeHtml(email.email_id)}</span>
+                            </div>
+                            <div class="email-meta-item">
+                                <span>Time:</span>
+                                <span>${escapeHtml(email.timestamp)}</span>
+                            </div>
+                            <div class="email-meta-item">
+                                <span>Origin:</span>
+                                <span>${escapeHtml(email.email_origin)}</span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+
+                document.getElementById('cleanEmailsList').innerHTML = emailsHtml;
+            } catch (error) {
+                console.error('Error loading clean emails:', error);
+                document.getElementById('cleanEmailsList').innerHTML = '<div class="email-loading">Erro ao carregar emails limpos</div>';
             }
         }
 

@@ -122,6 +122,18 @@ Details: [docs/Security.md](docs/Security.md)
 
 ---
 
+## Sandbox & Cleanup
+
+Keep CALMA isolated and the workspace clean after tests:
+
+- recommended VM usage and isolation notes
+- cleanup of generated logs, caches, and local envs
+- safe re-run guidance after email tests
+
+Details: [docs/Sandox.md](docs/Sandox.md)
+
+---
+
 ## Project Structure
 
 ```

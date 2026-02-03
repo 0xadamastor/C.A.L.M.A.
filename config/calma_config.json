@@ -11,6 +11,10 @@
     "cron_enabled": false,
     "cron_interval": 3,
     "cron_interval_unit": "hours",
+    "virustotal_api_key": "api_key",
+    "virustotal_enabled": true,
+    "virustotal_timeout": 300,
+    "fallback_to_local": true,
     "labels": {
         "clean": "Clean",
         "infected": "Infected",

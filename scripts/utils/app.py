@@ -12,7 +12,7 @@ import logging
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 TEMPLATES_DIR = BASE_DIR / 'templates'
-STATIC_DIR = BASE_DIR / 'logo'
+STATIC_DIR = BASE_DIR / 'assets'
 
 app = Flask(__name__, template_folder=str(TEMPLATES_DIR), static_folder=str(STATIC_DIR))
 app.secret_key = 'calma-secure-key-2025'
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 LOGS_DIR = str(BASE_DIR / 'logs')
 DATA_DIR = str(BASE_DIR / 'dados')
-LOGO_DIR = str(BASE_DIR / 'logo')
+LOGO_DIR = str(BASE_DIR / 'assets')
 CONFIG_FILE = str(BASE_DIR / 'config' / 'calma_config.json')
 
 EMAIL_ATTACHMENTS_DIR = os.path.join(DATA_DIR, 'anexos_processados')
@@ -204,7 +204,55 @@ def get_recent_analyses(limit=50):
     return analyses[-limit:] if len(analyses) > limit else analyses
 
 
-@app.route('/logo/<filename>')
+def get_clean_emails(limit=50):
+    clean_emails = []
+    try:
+        if not os.path.exists(clean_dir):
+            return []
+        
+        # Obter todos os ficheiros .meta
+        meta_files = sorted(glob.glob(os.path.join(clean_dir, '*.meta')), 
+                           key=os.path.getmtime, reverse=True)
+        
+        for meta_file in meta_files[:limit]:
+            try:
+                with open(meta_file, 'r', encoding='utf-8', errors='ignore') as f:
+                    content = f.read()
+                
+                # Extrair informações do metadata
+                filename_match = re.search(r'Nome original:\s*([^\n]+)', content)
+                email_origin = re.search(r'Email de origem:\s*([^\n]+)', content)
+                extraction_date = re.search(r'Data de extração:\s*([^\n]+)', content)
+                score_match = re.search(r'Score:\s*(\d+)/(\d+)', content)
+                subject_match = re.search(r'Assunto:\s*([^\n]+)', content)
+                sender_match = re.search(r'Remetente:\s*([^\n]+)', content)
+                email_id = re.search(r'Email ID original:\s*(\d+)', content)
+                
+                if filename_match:
+                    filename = filename_match.group(1).strip()
+                    score = int(score_match.group(1)) if score_match else 0
+                    max_score = int(score_match.group(2)) if score_match else 100
+                    
+                    clean_emails.append({
+                        'filename': filename,
+                        'score': score,
+                        'max_score': max_score,
+                        'timestamp': extraction_date.group(1).strip() if extraction_date else 'N/A',
+                        'email_origin': email_origin.group(1).strip() if email_origin else 'Unknown',
+                        'subject': subject_match.group(1).strip() if subject_match else 'No subject',
+                        'sender': sender_match.group(1).strip() if sender_match else 'Unknown',
+                        'email_id': email_id.group(1).strip() if email_id else 'N/A'
+                    })
+            except Exception as e:
+                logger.debug(f"Erro ao processar meta file {meta_file}: {e}")
+        
+        return clean_emails
+    except Exception as e:
+        logger.error(f"Erro ao obter emails limpos: {e}")
+        return []
+
+
+@app.route('/assets/<filename>')
 def serve_logo(filename):
     try:
         return send_from_directory(LOGO_DIR, filename)
@@ -265,6 +313,13 @@ def api_status():
     status = get_service_status()
     status['stats'] = get_statistics()
     return jsonify(status)
+
+
+@app.route('/api/clean-emails', methods=['GET'])
+def api_clean_emails():
+    limit = request.args.get('limit', 50, type=int)
+    clean_emails = get_clean_emails(limit)
+    return jsonify({'clean_emails': clean_emails, 'total': len(clean_emails)})
 
 
 def check_virtual_machine():

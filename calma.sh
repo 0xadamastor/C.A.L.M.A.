@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-set -e
-
 detect_os() {
     case "$(uname -s)" in
         Linux*)     OS_TYPE="Linux" ;;
@@ -61,6 +59,15 @@ carregar_config_json() {
     
     HASH_ALGORITHM=$(jq -r '.hash_algorithm // "sha256"' "$CONFIG_FILE")
     ENABLE_METADATA=$(jq -r '.enable_metadata // true' "$CONFIG_FILE")
+    
+    # VirusTotal Configuration
+    VIRUSTOTAL_ENABLED=$(jq -r '.virustotal_enabled // false' "$CONFIG_FILE")
+    VIRUSTOTAL_API_KEY=$(jq -r '.virustotal_api_key // ""' "$CONFIG_FILE")
+    VIRUSTOTAL_TIMEOUT=$(jq -r '.virustotal_timeout // 300' "$CONFIG_FILE")
+    FALLBACK_TO_LOCAL=$(jq -r '.fallback_to_local // true' "$CONFIG_FILE")
+    
+    # Notifications Configuration
+    NOTIFICATIONS_ENABLED=$(jq -r '.notifications_enabled // true' "$CONFIG_FILE")
 }
 
 carregar_config_json
@@ -75,8 +82,8 @@ INFECTED_DIR="${EMAIL_ATTACHMENTS_DIR}/infetados"
 SUSPICIOUS_DIR="${EMAIL_ATTACHMENTS_DIR}/suspeitos"
 QUARANTINE_DIR="${DATA_DIR}/quarentena"
 
-REQUIRE_VM="true"
-VM_WARNING_ONLY="false"
+REQUIRE_VM="false"
+VM_WARNING_ONLY="true"
 
 NEUTRALIZE_INFECTED="true"
 NEUTRALIZE_SUSPICIOUS="true"
@@ -191,141 +198,124 @@ gerar_metadados() {
 
 
 mover_email_para_label() {
-    local email_id="$1"
+    local filename="$1"
     local label_name="$2"
-    local classification="$3"
-    local original_filename="$4"
 
-    log_message "INFO" "Movendo email para label '$label_name' (Ficheiro: $original_filename)"
+    log_message "INFO" "Movendo email para label '$label_name' (Ficheiro: $filename)"
 
     python3 << PYTHON_EOF
 import imaplib
+import json
 import sys
 import time
-import re
 
-def move_email_to_label(email_id, label_name, filename):
-    mail = None
+def move_email_by_filename(filename, label_name, mapping_file, email_user, email_pass):
     try:
-        clean_filename = filename.strip()
-        if ':' in clean_filename:
-            clean_filename = clean_filename.split(':')[-1].strip()
+        # Carregar mapeamento
+        with open(mapping_file, 'r', encoding='utf-8') as f:
+            email_mapping = json.load(f)
         
-        print(f"[INFO] Procurando email com anexo '{clean_filename}'")
+        if filename not in email_mapping:
+            print(f"[WARN] Ficheiro '{filename}' não encontrado no mapeamento")
+            return False
+        
+        entry = email_mapping[filename]
+        email_id_str = entry.get('email_uid') or entry.get('email_id')
+        subject = entry.get('subject', '')
+        
+        print(f"[INFO] Procurando email: UID={email_id_str}, Assunto='{subject[:40]}'")
         
         mail = imaplib.IMAP4_SSL("imap.gmail.com", 993)
-        mail.login("$EMAIL_USER", "$EMAIL_PASS")
+        mail.login(email_user, email_pass)
         
+        # Selecionar INBOX
         status, data = mail.select("INBOX", readonly=False)
         if status != "OK":
-            print(f"[ERRO] Falha ao selecionar INBOX: {status}")
+            print(f"[ERRO] Falha ao selecionar INBOX")
+            mail.logout()
             return False
         
-        print(f"[DEBUG] INBOX selecionada com sucesso")
+        # Procurar email por UID
+        found_uid = None
         
-        status, message_ids = mail.search(None, 'ALL')
-        if status != "OK" or not message_ids[0]:
-            print(f"[WARN] Nenhum email encontrado na INBOX")
-            return False
-        
-        email_ids_list = message_ids[0].split()
-        print(f"[DEBUG] Total de {len(email_ids_list)} emails na INBOX")
-        
-        found_id = None
-        for eid in email_ids_list:
+        if email_id_str and str(email_id_str).isdigit():
             try:
-                status, msg_data = mail.fetch(eid, '(BODY.PEEK[])')
-                if status != "OK":
-                    continue
-                
-                raw_email = msg_data[0][1]
-                email_text = raw_email.decode('utf-8', errors='ignore')
-                
-                if clean_filename.lower() in email_text.lower():
-                    found_id = eid
-                    print(f"[SUCCESS] Email encontrado: UID {eid.decode()}")
-                    break
-                    
+                status, msg_data = mail.uid('fetch', str(email_id_str), '(RFC822)')
+                if status == "OK" and msg_data and msg_data[0]:
+                    found_uid = str(email_id_str)
+                    print(f"[SUCCESS] Email encontrado por UID: {email_id_str}")
             except Exception as e:
-                print(f"[DEBUG] Erro ao processar email {eid}: {e}")
-                continue
+                print(f"[DEBUG] Erro ao procurar por UID: {e}")
         
-        if not found_id and email_id and str(email_id).isdigit():
-            print(f"[WARN] Email não encontrado por nome, tentando UID {email_id}")
-            found_id = str(email_id).encode()
+        # Se não encontrou, procurar por subject (UID search)
+        if not found_uid and subject:
+            subject_short = subject[:40].strip()
+            try:
+                status, message_uids = mail.uid('search', None, 'SUBJECT', subject_short)
+                if status == "OK" and message_uids and message_uids[0]:
+                    found_uid = message_uids[0].split()[0].decode('utf-8')
+                    print(f"[SUCCESS] Email encontrado por subject (UID search)")
+            except Exception:
+                pass
         
-        if not found_id:
-            print(f"[ERRO] Email com anexo '{clean_filename}' não encontrado")
+        # Fallback: varrer headers por UID
+        if not found_uid and subject:
+            try:
+                status, message_uids = mail.uid('search', None, 'ALL')
+                if status == "OK" and message_uids and message_uids[0]:
+                    for uid in message_uids[0].split()[:50]:
+                        try:
+                            status, msg_data = mail.uid('fetch', uid, '(BODY.PEEK[HEADER])')
+                            if status == "OK" and msg_data and msg_data[0]:
+                                import email
+                                msg = email.message_from_bytes(msg_data[0][1])
+                                msg_subject = str(msg.get('Subject', ''))
+                                if subject_short.lower() in msg_subject.lower():
+                                    found_uid = uid.decode('utf-8')
+                                    print(f"[SUCCESS] Email encontrado por subject (header scan)")
+                                    break
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+        
+        if not found_uid:
+            print(f"[WARN] Email não encontrado")
+            mail.logout()
             return False
         
+        # Mover email para label
         print(f"[DEBUG] Copiando email para label '{label_name}'")
-        status, result = mail.copy(found_id, label_name)
+        status, result = mail.uid('copy', found_uid, label_name)
         
         if status != "OK":
-            print(f"[ERRO] Falha ao copiar: {status} - {result}")
+            print(f"[ERRO] Falha ao copiar email: {status}")
+            mail.logout()
             return False
         
-        print(f"[DEBUG] Email copiado - Status: {status}, Resultado: {result}")
-
-        result_str = str(result)
-        if 'COPYUID' not in result_str and 'Success' in result_str:
-            print(f"[WARN] Cópia pode ter falhado (sem COPYUID). Verificando label...")
-            
-            time.sleep(1)
-            status_check, data_check = mail.select(label_name, readonly=True)
-            if status_check == "OK":
-                status_search, messages_check = mail.search(None, 'ALL')
-                count_before = len(messages_check[0].split()) if messages_check[0] else 0
-                
-                mail.select("INBOX", readonly=False)
-                
-                if count_before == 0:
-                    print(f"[ERRO] Cópia falhou - Label '{label_name}' continua vazia")
-                    print(f"[INFO] Gmail pode estar bloqueando este tipo de anexo (.exe, .scr, etc)")
-                    return False
+        print(f"[DEBUG] Email copiado com sucesso")
         
-        print(f"[DEBUG] Removendo email da INBOX")
-        status, result = mail.store(found_id, '+FLAGS', '\\\\Deleted')
-        
-        if status != "OK":
-            print(f"[WARN] Falha ao marcar como deletado: {status}")
-        
-        mail.expunge()
-        print(f"[DEBUG] INBOX expurgada")
-        
-        time.sleep(1)
-        
-        status, data = mail.select(label_name, readonly=True)
+        # Marcar como deletado da INBOX
+        status, _ = mail.uid('store', found_uid, '+FLAGS', '\\Deleted')
         if status == "OK":
-            status, messages = mail.search(None, 'ALL')
-            if status == "OK":
-                count = len(messages[0].split()) if messages[0] else 0
-                print(f"[INFO] Label '{label_name}' agora tem {count} emails")
+            mail.expunge()
+            print(f"[DEBUG] Email removido da INBOX")
         
-        print(f"[SUCCESS] Email movido para '{label_name}' com sucesso!")
+        time.sleep(0.5)
+        
+        print(f"[SUCCESS] Email movido para '{label_name}'!")
+        mail.logout()
         return True
         
-    except imaplib.IMAP4.error as e:
-        print(f"[ERRO] Erro IMAP: {e}")
-        return False
     except Exception as e:
-        print(f"[ERRO] Erro inesperado: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"[ERRO] {e}")
         return False
-    finally:
-        if mail:
-            try:
-                mail.close()
-                mail.logout()
-            except:
-                pass
 
-email_id = "$email_id"
+filename = "$filename"
 label_name = "$label_name"
-filename = "$original_filename"
+mapping_file = "$DATA_DIR/email_mapping.json"
 
-success = move_email_to_label(email_id, label_name, filename)
+success = move_email_by_filename(filename, label_name, mapping_file, "$EMAIL_USER", "$EMAIL_PASS")
 sys.exit(0 if success else 1)
 PYTHON_EOF
 
@@ -346,6 +336,7 @@ extrair_anexos_email() {
 
     local timestamp=$(date +%Y%m%d_%H%M%S)
     local email_map_file="${LOGS_DIR}/email_map_${timestamp}.txt"
+    local email_mapping_json="${DATA_DIR}/email_mapping.json"
 
     > "$email_map_file"
 
@@ -354,6 +345,7 @@ import imaplib
 import email
 import os
 import re
+import json
 from email.header import decode_header
 from datetime import datetime
 
@@ -363,26 +355,36 @@ def extract_attachments():
         mail.login("$EMAIL_USER", "$EMAIL_PASS")
         mail.select("INBOX")
 
-        status, messages = mail.search(None, 'UNSEEN')
+        status, messages = mail.uid('search', None, 'UNSEEN')
 
         if status != "OK" or not messages[0]:
             print("INFO:Nenhum email novo encontrado.")
             mail.logout()
             return 0
 
-        email_ids = messages[0].split()
+        email_uids = messages[0].split()
         extracted = 0
 
-        print(f"INFO:Encontrados {len(email_ids)} email(s) não lido(s).")
+        print(f"INFO:Encontrados {len(email_uids)} email(s) não lido(s).")
+
+        # Carregar mapeamento existente
+        mapping_json = "$email_mapping_json"
+        email_mapping = {}
+        if os.path.exists(mapping_json):
+            try:
+                with open(mapping_json, 'r', encoding='utf-8') as f:
+                    email_mapping = json.load(f)
+            except:
+                email_mapping = {}
 
         with open("$email_map_file", "a", encoding='utf-8') as map_file:
-            for email_id_bytes in email_ids:
-                email_id = email_id_bytes.decode('utf-8')
+            for email_uid_bytes in email_uids:
+                email_uid = email_uid_bytes.decode('utf-8')
 
-                status, msg_data = mail.fetch(email_id_bytes, '(RFC822)')
+                status, msg_data = mail.uid('fetch', email_uid_bytes, '(RFC822)')
 
                 if status != "OK":
-                    print(f"AVISO:Falha ao buscar email {email_id}")
+                    print(f"AVISO:Falha ao buscar email {email_uid}")
                     continue
 
                 msg = email.message_from_bytes(msg_data[0][1])
@@ -404,7 +406,7 @@ def extract_attachments():
                     except Exception:
                         subject = "Erro na decodificação"
 
-                print(f"PROCESSANDO:Email ID: {email_id} | De: {from_header} | Assunto: {subject[:50]}")
+                print(f"PROCESSANDO:Email UID: {email_uid} | De: {from_header} | Assunto: {subject[:50]}")
 
                 part_num = 0
                 for part in msg.walk():
@@ -440,15 +442,29 @@ def extract_attachments():
                             with open(filepath, 'wb') as f:
                                 f.write(file_content)
 
-                            map_line = f"{email_id}:{final_name}:{from_header}:{subject}:{filename}"
+                            # Guardar no JSON de mapeamento persistente
+                            email_mapping[final_name] = {
+                                "email_uid": email_uid,
+                                "from": from_header,
+                                "subject": subject,
+                                "original_filename": filename,
+                                "extracted_at": timestamp_str
+                            }
+
+                            map_line = f"{email_uid}:{final_name}:{from_header}:{subject}:{filename}"
                             map_file.write(map_line + "\\n")
 
-                            print(f"EXTRAIDO:{email_id}:{final_name}:{filename}:{from_header}:{len(file_content)}")
+                            print(f"EXTRAIDO:{email_uid}:{final_name}:{filename}:{from_header}:{len(file_content)}")
                             extracted += 1
 
                 if part_num > 0:
-                    mail.store(email_id_bytes, '+FLAGS', '\\\\Seen')
-                    print(f"INFO:Email {email_id} marcado como lido")
+                    mail.uid('store', email_uid_bytes, '+FLAGS', '\\\\Seen')
+                    print(f"INFO:Email {email_uid} marcado como lido")
+
+        # Guardar mapeamento JSON
+        with open(mapping_json, 'w', encoding='utf-8') as f:
+            json.dump(email_mapping, f, ensure_ascii=False, indent=2)
+        print(f"INFO:Mapeamento guardado: {len(email_mapping)} entradas")
 
         mail.logout()
         print(f"RESULTADO:{extracted}")
@@ -488,7 +504,7 @@ PYTHON_EOF
                 if [ -f "$PENDING_DIR/$final_name" ]; then
                     file_hash=$(calcular_hash "$PENDING_DIR/$final_name")
                     gerar_metadados "$PENDING_DIR/$final_name" "$file_hash" "$from_addr"
-                    log_message "SUCCESS" "Anexo extraído: $original_name ($file_size bytes) | Email ID: $email_id"
+                    log_message "SUCCESS" "Anexo extraído: $original_name ($file_size bytes) | Email UID: $email_id"
                     extracted_count=$((extracted_count + 1))
                 fi
                 ;;
@@ -506,6 +522,77 @@ PYTHON_EOF
 }
 
 
+
+
+analisar_com_virustotal() {
+    local file_path="$1"
+    local filename=$(basename "$file_path")
+    
+    # Verifica se VirusTotal está habilitado
+    if [ "$VIRUSTOTAL_ENABLED" != "true" ]; then
+        return 1
+    fi
+    
+    # Verifica se API key está configurada
+    if [ -z "$VIRUSTOTAL_API_KEY" ] || [ "$VIRUSTOTAL_API_KEY" = "YOUR_VIRUSTOTAL_API_KEY" ]; then
+        log_message "WARN" "VirusTotal não configurado. Usando análise local."
+        return 1
+    fi
+    
+    log_message "INFO" "Iniciando análise com VirusTotal para: $filename"
+    
+    local python_cmd="python3"
+    if [ -d "${BASE_DIR}/venv" ]; then
+        python_cmd="${BASE_DIR}/venv/bin/python"
+    fi
+    
+    local script="${BASE_DIR}/scripts/detection/analyze_with_virustotal.py"
+    
+    if [ ! -f "$script" ]; then
+        log_message "WARN" "Script VirusTotal não encontrado. Usando análise local."
+        return 1
+    fi
+    
+    # Executa análise com VirusTotal (sem email para não poluir)
+    local result_file="/tmp/calma_vt_result_$$.txt"
+    
+    if $python_cmd "$script" "$file_path" --no-email --verbose > "$result_file" 2>&1; then
+        local exit_code=$?
+        
+        # Mapeia exit codes para scores
+        case $exit_code in
+            0)
+                # LIMPO
+                log_message "SUCCESS" "VirusTotal: Ficheiro LIMPO"
+                echo "15"
+                rm -f "$result_file"
+                return 0
+                ;;
+            1)
+                # SUSPEITO
+                log_message "WARN" "VirusTotal: Ficheiro SUSPEITO"
+                echo "55"
+                rm -f "$result_file"
+                return 0
+                ;;
+            2)
+                # MALWARE
+                log_message "ERROR" "VirusTotal: MALWARE DETECTADO!"
+                echo "92"
+                rm -f "$result_file"
+                return 0
+                ;;
+        esac
+    else
+        log_message "WARN" "Erro na análise VirusTotal: $(cat "$result_file" 2>/dev/null | head -5)"
+        rm -f "$result_file"
+        return 1
+    fi
+    
+    rm -f "$result_file"
+    return 1
+}
+
 calcular_score_risco() {
     local file_path="$1"
     local filename
@@ -516,6 +603,18 @@ calcular_score_risco() {
         base_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     fi
 
+    # Tenta VirusTotal primeiro
+    local vt_score
+    vt_score=$(analisar_com_virustotal "$file_path")
+    if [ $? -eq 0 ] && [[ "$vt_score" =~ ^[0-9]+$ ]]; then
+        return_score="$vt_score"
+        if [ "$return_score" -lt 0 ]; then return_score=0; fi
+        if [ "$return_score" -gt 100 ]; then return_score=100; fi
+        echo "$return_score"
+        return 0
+    fi
+
+    # Fallback: Análise local
     local detector="$base_dir/scripts/detection/detect_malware_universal.py"
 
     if [ -f "$detector" ]; then
@@ -641,7 +740,7 @@ processar_anexos_pendentes() {
         if [ -n "$email_info" ]; then
             IFS=':' read -r email_id email_from email_subject original_filename <<< "$email_info"
             original_filename=$(echo "$original_filename" | xargs)
-            log_message "INFO" "Email original ID: $email_id | De: $email_from"
+            log_message "INFO" "Email original UID: $email_id | De: $email_from"
         else
             log_message "WARN" "Email ID não encontrado no mapeamento para: $filename"
             if [[ "$filename" =~ ^[0-9]+_[0-9]+_(.+)$ ]]; then
@@ -671,21 +770,23 @@ processar_anexos_pendentes() {
             label_name="Clean"
         fi
 
-        if [ -n "$email_id" ] && [[ "$email_id" =~ ^[0-9]+$ ]]; then
-            log_message "INFO" "A mover email $email_id para label '$label_name'..."
+        if [ -n "$original_filename" ] && [ -n "$label_name" ]; then
+            log_message "INFO" "A mover email para label '$label_name' (Ficheiro: $filename)..."
 
-            mover_email_para_label "$email_id" "$label_name" "$classification" "$original_filename"
+            # Usar o filename final para o mapeamento
+            local mapping_filename=$(basename "$file_path")
+            mover_email_para_label "$mapping_filename" "$label_name"
             local move_result=$?
 
             if [ $move_result -eq 0 ]; then
-                log_message "SUCCESS" "Email $email_id movido para label '$label_name'"
+                log_message "SUCCESS" "Email movido para label '$label_name'"
             else
-                log_message "WARN" "Falha ao mover email $email_id para '$label_name' (código: $move_result)"
+                log_message "WARN" "Falha ao mover email para '$label_name' (código: $move_result)"
                 
                 if [ "$label_name" = "Infected" ]; then
                     log_message "INFO" "Gmail pode estar bloqueando anexo perigoso (.exe). Tentando mover para 'Suspicious'..."
                     
-                    mover_email_para_label "$email_id" "Suspicious" "$classification" "$original_filename"
+                    mover_email_para_label "$mapping_filename" "Suspicious"
                     local fallback_result=$?
                     
                     if [ $fallback_result -eq 0 ]; then
@@ -697,7 +798,7 @@ processar_anexos_pendentes() {
                 fi
             fi
         else
-            log_message "INFO" "Email não movido (ID inválido ou não disponível): $email_id"
+            log_message "INFO" "Email não movido (ficheiro inválido): $filename"
         fi
 
         local neutralized_path=$(neutralizar_ficheiro "$file_path" "$classification")
