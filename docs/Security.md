@@ -55,13 +55,12 @@ notepad config/calma_config.json
 - **Use a dedicated Gmail account** for scanning.
 - **Enable 2FA** and use **App Passwords**.
 - Run CALMA inside a **VM** or container for isolation.
-- Review logs regularly in [logs/](logs/).
 
 ---
 
 ## Configuration Safety Tips
 
-- Store credentials only in [config/calma_config.json](config/calma_config.json).
+- Store credentials only in [calma_config.json](/config/calma_config.json).
 - Keep permissions tight:
   - `chmod 600` on config file
   - `chmod 700` on data/log directories
@@ -100,6 +99,5 @@ If CALMA misses something, that’s not a feature—please report it.
 
 ## Related Docs
 
-- [docs/ML_Calma.md](docs/ML_Calma.md)
-- [README.md](README.md)
-- [INSTALL.md](INSTALL.md)
+- [ML_Calma.md](/docs/ML_Calma.md)
+- [README.md](/README.md)
