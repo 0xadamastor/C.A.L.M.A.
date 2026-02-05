@@ -1034,6 +1034,17 @@
             margin-bottom: 16px;
             color: var(--text);
         }
+
+        .vm-warning-banner {
+            display: none;
+            border: 1px solid #ffaa00;
+            background: rgba(255, 170, 0, 0.08);
+            color: #ffaa00;
+            padding: 12px 24px;
+            font-size: 11px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
     </style>
 </head>
 <body>
@@ -1082,6 +1093,8 @@
                 <div>Last Update: <span id="lastUpdate">--:--:--</span></div>
             </div>
         </header>
+
+        <div id="vmWarningBanner" class="vm-warning-banner"></div>
 
         <nav>
             <button class="nav-btn active" data-tab="onboarding">Overview</button>
@@ -1296,6 +1309,21 @@
                         <div class="form-group">
                             <label for="logRetention">Keep Logs (days)</label>
                             <input type="number" id="logRetention" value="7">
+                        </div>
+                        <div class="form-group">
+                            <label for="requireVm">Require Virtual Machine</label>
+                            <select id="requireVm">
+                                <option value="false">Disabled</option>
+                                <option value="true">Enabled</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="vmWarningOnly">VM Warning Only</label>
+                            <select id="vmWarningOnly">
+                                <option value="true">Warn Only</option>
+                                <option value="false">Block Execution</option>
+                            </select>
+                            <small>When VM is required, choose warn or block.</small>
                         </div>
                     </div>
                 </div>
@@ -1857,6 +1885,18 @@
             loadRecentDetonations();
             loadCleanEmails();
             generateCity();
+            checkVmStatus(false);
+            
+            // Auto-refresh dashboard every 30 seconds
+            setInterval(refreshDashboard, 30000);
+            
+            // Auto-refresh logs every 15 seconds when in logs tab
+            setInterval(() => {
+                const activeTab = document.querySelector('nav button.active');
+                if (activeTab && activeTab.textContent.includes('Logs')) {
+                    refreshLogs();
+                }
+            }, 15000);
         });
 
         // Generate City Background
@@ -1959,9 +1999,12 @@
                 document.getElementById('maxFileSize').value = config.max_file_size || 10485760;
                 document.getElementById('scanTimeout').value = config.scan_timeout || 300;
                 document.getElementById('logRetention').value = config.keep_logs_days || 7;
+                document.getElementById('requireVm').value = config.require_vm ? 'true' : 'false';
+                document.getElementById('vmWarningOnly').value = config.vm_warning_only === false ? 'false' : 'true';
                 
                 // Atualizar preview
                 updateCronPreview();
+                checkVmStatus(false);
             } catch (error) {
                 console.error('Error loading config:', error);
             }
@@ -2036,7 +2079,9 @@
                 cron_interval_unit: document.getElementById('cronIntervalUnit').value,
                 max_file_size: parseInt(document.getElementById('maxFileSize').value),
                 scan_timeout: parseInt(document.getElementById('scanTimeout').value),
-                keep_logs_days: parseInt(document.getElementById('logRetention').value)
+                keep_logs_days: parseInt(document.getElementById('logRetention').value),
+                require_vm: document.getElementById('requireVm').value === 'true',
+                vm_warning_only: document.getElementById('vmWarningOnly').value === 'true'
             };
 
             try {
@@ -2049,8 +2094,48 @@
                 const msgDiv = document.getElementById('configMessage');
                 msgDiv.textContent = result.success ? 'Configuration saved successfully' : 'Error saving configuration';
                 setTimeout(() => msgDiv.textContent = '', 3000);
+                checkVmStatus(false);
             } catch (error) {
                 document.getElementById('configMessage').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function checkVmStatus(blockOnFailure) {
+            try {
+                const [vmResponse, configResponse] = await Promise.all([
+                    fetch(`${API_BASE}/vm-check`),
+                    fetch(`${API_BASE}/config`)
+                ]);
+
+                const vm = await vmResponse.json();
+                const config = await configResponse.json();
+
+                const requireVm = config.require_vm === true;
+                const warningOnly = config.vm_warning_only !== false;
+                const banner = document.getElementById('vmWarningBanner');
+
+                if (requireVm && !vm.safe) {
+                    if (banner) {
+                        banner.style.display = 'block';
+                        banner.textContent = `VM REQUIRED: ${vm.message || 'Virtual machine not detected'}`;
+                    }
+
+                    if (!warningOnly && blockOnFailure) {
+                        alert('Execução bloqueada: VM obrigatória não detectada.');
+                        return false;
+                    }
+
+                    if (warningOnly && blockOnFailure) {
+                        alert(`Aviso: ${vm.message || 'VM não detectada'}`);
+                    }
+                } else if (banner) {
+                    banner.style.display = 'none';
+                }
+
+                return true;
+            } catch (error) {
+                console.error('Error checking VM status:', error);
+                return true;
             }
         }
 
@@ -2334,6 +2419,10 @@
 
         async function startMonitoring() {
             try {
+                const vmAllowed = await checkVmStatus(true);
+                if (!vmAllowed) {
+                    return;
+                }
                 const config = await fetch(`${API_BASE}/config`).then(r => r.json());
                 const interval = config.cron_interval || 5;
                 const unit = config.cron_interval_unit || 'minutes';
@@ -2358,7 +2447,8 @@
                     // Criar mensagem mais intuitiva
                     let unitText = unit === 'seconds' ? 'segundo' : (unit === 'minutes' ? 'minuto' : 'hora');
                     let intervalText = interval === 1 ? unitText : (interval + ' ' + unit);
-                    alert('Monitoramento ativado com sucesso! Intervalo: A cada ' + intervalText);
+                    const warning = result.warning ? `\n${result.warning}` : '';
+                    alert('Monitoramento ativado com sucesso! Intervalo: A cada ' + intervalText + warning);
                 } else {
                     alert('Erro ao ativar monitoramento: ' + result.message);
                 }
@@ -2426,10 +2516,19 @@
         // Clear Old Logs
         async function clearOldLogs() {
             try {
-                await fetch(`${API_BASE}/logs/clear`, { method: 'POST' });
+                const response = await fetch(`${API_BASE}/logs/clear`, { 
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ days: 7 })
+                });
+                const data = await response.json();
+                alert(data.message || 'Logs antigos removidos com sucesso');
                 refreshLogs();
             } catch (error) {
                 console.error('Error clearing logs:', error);
+                alert('Erro ao limpar logs');
             }
         }
         
