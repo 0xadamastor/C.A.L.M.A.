@@ -1,0 +1,46 @@
+# Sensitive files / Ficheiros sensiveis
+.env
+*.log
+config/calma_config.json
+
+# Local data / Dados locais
+/data/
+/dados/
+/logs/
+email_mapping.json
+*.meta
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ML models (large files - train locally)
+# Modelos ML (ficheiros grandes - treinar localmente)
+scripts/detection/Data/*.pkl
+scripts/ml/Data/*.pkl
+scripts/ml/Data/*.csv
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temp files / Ficheiros temporarios
+*.tmp
+*.bak
+/tmp/
