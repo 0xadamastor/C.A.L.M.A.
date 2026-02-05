@@ -54,11 +54,11 @@ python setup.py
 
 ---
 
-## How to Start / Como Começar
+## How to Start
 
-### First-Time Setup / Configuração Inicial
+### First-Time Setup
 
-#### Step 1: Install Dependencies / Passo 1: Instalar Dependências
+#### Step 1: Install Dependencies
 
 **Windows:**
 ```bash
@@ -66,7 +66,7 @@ python setup.py
 python install_universal.py
 ```
 
-or just run the install_universal.bat
+Or just run the `install_universal.bat`
 
 **Linux/macOS:**
 ```bash
@@ -77,17 +77,17 @@ chmod +x install_universal.sh
 ./install_universal.sh
 ```
 
-**What this does / O que isto faz:**
-- ✓ Checks Python 3.8+ is installed / Verifica Python 3.8+
-- ✓ Installs system dependencies (jq, etc.) / Instala dependências do sistema
-- ✓ Creates virtual environment / Cria ambiente virtual
-- ✓ Installs Python packages / Instala pacotes Python
-- ✓ Creates directory structure / Cria estrutura de diretórios
-- ✓ Creates default config file / Cria ficheiro de configuração padrão
+**What this does:**
+- ✓ Checks Python 3.8+ is installed
+- ✓ Installs system dependencies (jq, etc.)
+- ✓ Creates virtual environment
+- ✓ Installs Python packages
+- ✓ Creates directory structure
+- ✓ Creates default config file
 
-#### Step 2: Configure Gmail / Passo 2: Configurar Gmail
+#### Step 2: Configure Gmail
 
-**Option A: Interactive Setup (Recommended) / Opção A: Configuração Interativa (Recomendado)**
+**Option A: Interactive Setup (Recommended)**
 ```bash
 python setup.py
 ```
@@ -98,23 +98,24 @@ The wizard guides you through:
 3. Gmail credentials (email + app password)
 4. VirusTotal API key (optional)
 5. Gmail labels configuration
+6. Malware Bazar test sender (optional)
 
-**Option B: Manual Configuration / Opção B: Configuração Manual**
+**Option B: Manual Configuration**
 ```bash
-# Copy example config / Copiar configuração exemplo
+# Copy example config
 cp config/calma_config.example.json config/calma_config.json
 
-# Edit with your credentials / Editar com as suas credenciais
+# Edit with your credentials
 nano config/calma_config.json  # Linux/macOS
 notepad config/calma_config.json  # Windows
 ```
 
-**Required Gmail Setup / Configuração Gmail Necessária:**
-1. Enable 2FA on your Gmail account / Ativar 2FA na conta Gmail
+**Required Gmail Setup:**
+1. Enable 2FA on your Gmail account
 2. Generate App Password at: https://myaccount.google.com/apppasswords
 3. Use the app password (not your regular password) in config
 
-#### Step 3: Setup Shell Aliases (Optional) / Passo 3: Configurar Atalhos (Opcional)
+#### Step 3: Setup Shell Aliases (Optional)
 
 **Linux/macOS:**
 ```bash
@@ -143,16 +144,16 @@ This gives you convenient commands:
 
 ---
 
-### Running CALMA / Executar CALMA
+### Running CALMA
 
-#### Method 1: Command Line / Método 1: Linha de Comandos
+#### Method 1: Command Line
 
-**With aliases (if configured) / Com atalhos (se configurado):**
+**With aliases (if configured):**
 ```bash
 calma
 ```
 
-**Without aliases / Sem atalhos:**
+**Without aliases:**
 ```bash
 # Linux/macOS
 ./calma.sh
@@ -161,16 +162,16 @@ calma
 bash calma.sh
 ```
 
-**What happens when you run it / O que acontece ao executar:**
-1. **Phase 1:** Downloads email attachments from Gmail / Descarrega anexos do Gmail
-2. **Phase 2:** Analyzes files using ML models / Analisa ficheiros com modelos ML
-3. **Phase 3:** Classifies as Clean/Suspicious/Infected / Classifica como Limpo/Suspeito/Infectado
-4. **Phase 4:** Applies Gmail labels automatically / Aplica etiquetas Gmail automaticamente
-5. **Phase 5:** Generates execution report / Gera relatório de execução
+**What happens when you run it:**
+1. **Phase 1:** Downloads email attachments from Gmail
+2. **Phase 2:** Analyzes files using ML models
+3. **Phase 3:** Classifies as Clean/Suspicious/Infected
+4. **Phase 4:** Applies Gmail labels automatically
+5. **Phase 5:** Generates execution report
 
-#### Method 2: Web Interface / Método 2: Interface Web
+#### Method 2: Web Interface
 
-**Start web server / Iniciar servidor web:**
+**Start web server:**
 ```bash
 # With alias
 calma-web
@@ -180,22 +181,22 @@ python3 scripts/utils/app.py  # Linux/macOS
 python scripts/utils/app.py   # Windows
 ```
 
-**Access in browser / Aceder no navegador:**
+**Access in browser:**
 ```
 http://localhost:5000
 ```
 
-**Web interface features / Funcionalidades da interface web:**
-- Dashboard with statistics / Painel com estatísticas
-- View classification results / Ver resultados de classificação
-- Configure system settings / Configurar definições do sistema
-- View logs in real-time / Ver logs em tempo real
+**Web interface features:**
+- Dashboard with statistics
+- View classification results
+- Configure system settings
+- View logs in real-time
 
 ---
 
-### Verifying It Works / Verificar Funcionamento
+### Verifying It Works
 
-#### Check System Status / Verificar Estado do Sistema
+#### Check System Status
 
 ```bash
 # With alias
@@ -213,44 +214,44 @@ This checks:
 - Gmail connectivity
 - Directory structure
 
-#### View Logs / Ver Logs
+#### View Logs
 
 ```bash
-# Recent logs / Logs recentes
+# Recent logs
 calma-logs
 
-# Or manually / Ou manualmente
+# Or manually
 tail -f logs/execucao_*.log
 
-# On Windows / No Windows
+# On Windows
 Get-Content logs\execucao_*.log -Tail 50
 ```
 
-#### Check Gmail Labels / Verificar Etiquetas Gmail
+#### Check Gmail Labels
 
-1. Open Gmail in browser / Abrir Gmail no navegador
-2. Look in left sidebar / Ver na barra lateral esquerda
-3. You should see these labels / Deve ver estas etiquetas:
-   - 📧 **Clean** - Safe attachments / Anexos seguros
-   - ⚠️ **Suspicious** - Potentially dangerous / Potencialmente perigosos
-   - 🚨 **Infected** - Confirmed malware / Malware confirmado
+1. Open Gmail in browser
+2. Look in left sidebar
+3. You should see these labels:
+   - 📧 **Clean** - Safe attachments
+   - ⚠️ **Suspicious** - Potentially dangerous
+   - 🚨 **Infected** - Confirmed malware
 
 ---
 
-### Automated Execution / Execução Automatizada
+### Automated Execution
 
-**Linux/macOS - Add to crontab / Adicionar ao crontab:**
+**Linux/macOS - Add to crontab:**
 ```bash
-# Run every hour / Executar a cada hora
+# Run every hour
 crontab -e
 
-# Add line / Adicionar linha:
+# Add line:
 0 * * * * cd /path/to/calma && ./calma.sh >> logs/cron.log 2>&1
 ```
 
-**Windows - Task Scheduler / Agendador de Tarefas:**
+**Windows - Task Scheduler:**
 ```powershell
-# Run hourly / Executar a cada hora
+# Run hourly
 schtasks /create /tn "CALMA" /tr "bash C:\path\to\calma\calma.sh" /sc HOURLY
 ```
 
@@ -361,17 +362,19 @@ python setup.py
 
 ---
 
-## Como Começar / How to Start
+## Como Começar
 
-### Configuração Inicial / First-Time Setup
+### Configuração Inicial
 
-#### Passo 1: Instalar Dependências / Step 1: Install Dependencies
+#### Passo 1: Instalar Dependências
 
 **Windows:**
 ```bash
 # Usar PowerShell ou Linha de Comandos
 python install_universal.py
 ```
+
+Ou simplesmente executar `install_universal.bat`
 
 **Linux/macOS:**
 ```bash
@@ -382,44 +385,45 @@ chmod +x install_universal.sh
 ./install_universal.sh
 ```
 
-**O que isto faz / What this does:**
-- ✓ Verifica Python 3.8+ / Checks Python 3.8+ is installed
-- ✓ Instala dependências do sistema (jq, etc.) / Installs system dependencies
-- ✓ Cria ambiente virtual / Creates virtual environment
-- ✓ Instala pacotes Python / Installs Python packages
-- ✓ Cria estrutura de diretórios / Creates directory structure
-- ✓ Cria ficheiro de configuração padrão / Creates default config file
+**O que isto faz:**
+- ✓ Verifica se Python 3.8+ está instalado
+- ✓ Instala dependências do sistema (jq, etc.)
+- ✓ Cria ambiente virtual
+- ✓ Instala pacotes Python
+- ✓ Cria estrutura de diretórios
+- ✓ Cria ficheiro de configuração padrão
 
-#### Passo 2: Configurar Gmail / Step 2: Configure Gmail
+#### Passo 2: Configurar Gmail
 
-**Opção A: Configuração Interativa (Recomendado) / Option A: Interactive Setup (Recommended)**
+**Opção A: Configuração Interativa (Recomendado)**
 ```bash
 python setup.py
 ```
 
-O assistente guia-o através de:
+O assistente guia através de:
 1. Seleção de idioma (Português/Inglês)
 2. Verificação de requisitos
 3. Credenciais Gmail (email + password de aplicação)
 4. Chave API VirusTotal (opcional)
 5. Configuração de etiquetas Gmail
+6. Malware Bazar test sender (opcional)
 
-**Opção B: Configuração Manual / Option B: Manual Configuration**
+**Opção B: Configuração Manual**
 ```bash
-# Copiar configuração exemplo / Copy example config
+# Copiar configuração exemplo
 cp config/calma_config.example.json config/calma_config.json
 
-# Editar com as suas credenciais / Edit with your credentials
+# Editar com as credenciais
 nano config/calma_config.json  # Linux/macOS
 notepad config/calma_config.json  # Windows
 ```
 
-**Configuração Gmail Necessária / Required Gmail Setup:**
-1. Ativar 2FA na conta Gmail / Enable 2FA on your Gmail account
+**Configuração Gmail Necessária:**
+1. Ativar 2FA na conta Gmail
 2. Gerar App Password em: https://myaccount.google.com/apppasswords
 3. Usar a app password (não a password normal) na configuração
 
-#### Passo 3: Configurar Atalhos (Opcional) / Step 3: Setup Shell Aliases (Optional)
+#### Passo 3: Configurar Atalhos (Opcional)
 
 **Linux/macOS:**
 ```bash
@@ -448,16 +452,16 @@ Isto disponibiliza comandos convenientes:
 
 ---
 
-### Executar CALMA / Running CALMA
+### Executar CALMA
 
-#### Método 1: Linha de Comandos / Method 1: Command Line
+#### Método 1: Linha de Comandos
 
-**Com atalhos (se configurado) / With aliases (if configured):**
+**Com atalhos (se configurado):**
 ```bash
 calma
 ```
 
-**Sem atalhos / Without aliases:**
+**Sem atalhos:**
 ```bash
 # Linux/macOS
 ./calma.sh
@@ -466,16 +470,16 @@ calma
 bash calma.sh
 ```
 
-**O que acontece ao executar / What happens when you run it:**
-1. **Fase 1:** Descarrega anexos do Gmail / Downloads email attachments from Gmail
-2. **Fase 2:** Analisa ficheiros com modelos ML / Analyzes files using ML models
-3. **Fase 3:** Classifica como Limpo/Suspeito/Infectado / Classifies as Clean/Suspicious/Infected
-4. **Fase 4:** Aplica etiquetas Gmail automaticamente / Applies Gmail labels automatically
-5. **Fase 5:** Gera relatório de execução / Generates execution report
+**O que acontece ao executar:**
+1. **Fase 1:** Descarrega anexos do Gmail
+2. **Fase 2:** Analisa ficheiros com modelos ML
+3. **Fase 3:** Classifica como Limpo/Suspeito/Infectado
+4. **Fase 4:** Aplica etiquetas Gmail automaticamente
+5. **Fase 5:** Gera relatório de execução
 
-#### Método 2: Interface Web / Method 2: Web Interface
+#### Método 2: Interface Web
 
-**Iniciar servidor web / Start web server:**
+**Iniciar servidor web:**
 ```bash
 # Com atalho
 calma-web
@@ -485,22 +489,22 @@ python3 scripts/utils/app.py  # Linux/macOS
 python scripts/utils/app.py   # Windows
 ```
 
-**Aceder no navegador / Access in browser:**
+**Aceder no navegador:**
 ```
 http://localhost:5000
 ```
 
-**Funcionalidades da interface web / Web interface features:**
-- Painel com estatísticas / Dashboard with statistics
-- Ver resultados de classificação / View classification results
-- Configurar definições do sistema / Configure system settings
-- Ver logs em tempo real / View logs in real-time
+**Funcionalidades da interface web:**
+- Painel com estatísticas
+- Ver resultados de classificação
+- Configurar definições do sistema
+- Ver logs em tempo real
 
 ---
 
-### Verificar Funcionamento / Verifying It Works
+### Verificar Funcionamento
 
-#### Verificar Estado do Sistema / Check System Status
+#### Verificar Estado do Sistema
 
 ```bash
 # Com atalho
@@ -518,44 +522,44 @@ Isto verifica:
 - Conectividade Gmail
 - Estrutura de diretórios
 
-#### Ver Logs / View Logs
+#### Ver Logs
 
 ```bash
-# Logs recentes / Recent logs
+# Logs recentes
 calma-logs
 
-# Ou manualmente / Or manually
+# Ou manualmente
 tail -f logs/execucao_*.log
 
-# No Windows / On Windows
+# No Windows
 Get-Content logs\execucao_*.log -Tail 50
 ```
 
-#### Verificar Etiquetas Gmail / Check Gmail Labels
+#### Verificar Etiquetas Gmail
 
-1. Abrir Gmail no navegador / Open Gmail in browser
-2. Ver na barra lateral esquerda / Look in left sidebar
-3. Deve ver estas etiquetas / You should see these labels:
-   - 📧 **Clean** - Anexos seguros / Safe attachments
-   - ⚠️ **Suspicious** - Potencialmente perigosos / Potentially dangerous
-   - 🚨 **Infected** - Malware confirmado / Confirmed malware
+1. Abrir Gmail no navegador
+2. Ver na barra lateral esquerda
+3. Deve ver estas etiquetas:
+   - 📧 **Clean** - Anexos seguros
+   - ⚠️ **Suspicious** - Potencialmente perigosos
+   - 🚨 **Infected** - Malware confirmado
 
 ---
 
-### Execução Automatizada / Automated Execution
+### Execução Automatizada
 
-**Linux/macOS - Adicionar ao crontab / Add to crontab:**
+**Linux/macOS - Adicionar ao crontab:**
 ```bash
-# Executar a cada hora / Run every hour
+# Executar a cada hora
 crontab -e
 
-# Adicionar linha / Add line:
+# Adicionar linha:
 0 * * * * cd /path/to/calma && ./calma.sh >> logs/cron.log 2>&1
 ```
 
-**Windows - Agendador de Tarefas / Task Scheduler:**
+**Windows - Agendador de Tarefas:**
 ```powershell
-# Executar a cada hora / Run hourly
+# Executar a cada hora
 schtasks /create /tn "CALMA" /tr "bash C:\path\to\calma\calma.sh" /sc HOURLY
 ```
 
@@ -628,45 +632,6 @@ Ver [CONTRIBUTING.md](CONTRIBUTING.md)
 
 Licenca MIT - ver [LICENSE](LICENSE)
 
-
-- [Guia de Seguranca](docs/Security.md)
-- [Guia de Sandbox](docs/Sandox.md)
-
-### Estrutura do Projeto
-
-```
-calma/
-├── config/                 # Ficheiros de configuracao
-├── scripts/
-│   ├── detection/          # Motor de deteccao
-│   ├── ml/                 # Modelos ML
-│   └── utils/              # Utilitarios e interface web
-├── templates/              # Templates da interface web
-├── docs/                   # Documentacao
-└── calma.sh                # Script principal
-```
-
-### Requisitos
-
-- Python 3.8+
-- `jq` (parser JSON)
-- Git Bash ou WSL (apenas Windows)
-
-### Resolucao de Problemas
-
-| Problema | Solucao |
-|----------|---------|
-| `jq` nao encontrado | Instalar via gestor de pacotes |
-| Template nao encontrado | Executar a partir da raiz do repo |
-| Problemas de path no Windows | Usar Git Bash ou WSL |
-| Permissao negada | Executar `chmod +x calma.sh` |
-| Erros de import | Ativar venv: `source venv/bin/activate` |
-
-### Contribuir
-
-Ver [CONTRIBUTING.md](CONTRIBUTING.md)
-
-### Licenca
 
 Licenca MIT - ver [LICENSE](LICENSE)
 
