@@ -106,5 +106,5 @@ If accuracy looks amazing but clean precision collapses, your model is probably 
 
 ## Related Docs
 
-- [docs/Security.md](/docs/Security.md)
+- [Security.md](/docs/Security.md)
 - [README.md](/README.md)
