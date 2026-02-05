@@ -100,12 +100,11 @@ If accuracy looks amazing but clean precision collapses, your model is probably 
 **Fixes:**
 - Rebalance datasets
 - Retrain models
-- Adjust thresholds in [config/calma_config.json](config/calma_config.json)
+- Adjust thresholds in [calma_config.json](/config/calma_config.json)
 
 ---
 
 ## Related Docs
 
-- [docs/Security.md](docs/Security.md)
-- [README.md](README.md)
-- [INSTALL.md](INSTALL.md)
+- [docs/Security.md](/docs/Security.md)
+- [README.md](/README.md)
