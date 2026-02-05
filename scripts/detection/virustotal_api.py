@@ -9,7 +9,7 @@ import hashlib
 import time
 from pathlib import Path
 from dataclasses import dataclass
-from typing import Optional, Dict, Tuple
+from typing import Optional, Dict, Tuple, List, Any
 import requests
 
 # Configuração
@@ -17,6 +17,7 @@ VT_API_BASE = "https://www.virustotal.com/api/v3"
 VT_FILE_SCAN_ENDPOINT = f"{VT_API_BASE}/files"
 VT_ANALYSIS_ENDPOINT = f"{VT_API_BASE}/analyses"
 VT_HASH_LOOKUP_ENDPOINT = f"{VT_API_BASE}/files"
+VT_BEHAVIOR_SUMMARY_ENDPOINT = f"{VT_API_BASE}/files/{{file_id}}/behaviour_summary"
 
 # Timeouts e retries
 MAX_RETRIES = 3
@@ -39,19 +40,22 @@ class VTDetectionResult:
     vendors_detected: Dict[str, str]
     analysis_date: Optional[str]
     error: Optional[str]
+    behavior_verdict: Optional[str] = None
+    behavior_tags: Optional[List[str]] = None
+    behavior_stats: Optional[Dict[str, Any]] = None
     
     def __str__(self) -> str:
         if self.error:
             return f"Erro VirusTotal: {self.error}"
         
-        status_tag = "[!]" if self.is_malicious else "[OK]"
+        emoji = "🔴" if self.is_malicious else "🟢"
         status = "MALWARE" if self.is_malicious else "LIMPO"
         
         return f"""
 ╔══════════════════════════════════════════════════════════╗
-║            ANALISE VIRUSTOTAL (SANDBOX)                  ║
+║            ANÁLISE VIRUSTOTAL (SANDBOX)                  ║
 ╠══════════════════════════════════════════════════════════╣
-║ {status_tag} RESULTADO: {status:<40} ║
+║ {emoji} RESULTADO: {status:<40} ║
 ╠══════════════════════════════════════════════════════════╣
 ║ Hash SHA256:    {self.file_hash[:44]:<43} ║
 ║ Tamanho:        {self._format_size():<43} ║
@@ -60,6 +64,7 @@ class VTDetectionResult:
 ║ DETECÇÕES:      {self.malicious_count}/{self.total_vendors} Antivírus                 ║
 ║ Limpo:          {self.undetected_count}/{self.total_vendors} Antivírus                 ║
 ║                                                          ║
+║ Sandbox:        {str(self.behavior_verdict or 'N/A'):<43} ║
 ║ Vendors detectados:                                      ║
 {self._format_vendors()}
 ╚══════════════════════════════════════════════════════════╝
@@ -213,6 +218,7 @@ class VirusTotalAPI:
             
             # Aguarda resultado
             result = self._wait_for_analysis(analysis_id, file_path, file_hash)
+            result = self._attach_behavior_summary(result, file_hash)
             return file_hash, result
             
         except requests.exceptions.RequestException as e:
@@ -257,7 +263,8 @@ class VirusTotalAPI:
                 
                 if status == 'completed':
                     print(f"[VirusTotal] Análise concluída!")
-                    return self._parse_analysis_response(data, file_hash, str(file_path))
+                    result = self._parse_analysis_response(data, file_hash, str(file_path))
+                    return self._attach_behavior_summary(result, file_hash)
                 
                 elif status == 'queued':
                     elapsed = int(time.time() - start_time)
@@ -378,6 +385,35 @@ class VirusTotalAPI:
                 error=f"Erro ao processar resposta: {str(e)}"
             )
 
+    def _attach_behavior_summary(self, result: VTDetectionResult, file_hash: str) -> VTDetectionResult:
+        if not result or result.error:
+            return result
+
+        try:
+            url = VT_BEHAVIOR_SUMMARY_ENDPOINT.format(file_id=file_hash)
+            response = self.session.get(url, timeout=30)
+            if response.status_code == 404:
+                return result
+            response.raise_for_status()
+            data = response.json()
+
+            attributes = data.get('data', {}).get('attributes', {})
+            verdict = attributes.get('verdict') or attributes.get('analysis_verdict')
+            if verdict is None:
+                if attributes.get('malicious') is True:
+                    verdict = 'malicious'
+                elif attributes.get('suspicious') is True:
+                    verdict = 'suspicious'
+
+            tags = attributes.get('tags') or attributes.get('behavior_tags') or []
+
+            result.behavior_verdict = verdict
+            result.behavior_tags = tags if isinstance(tags, list) else []
+            result.behavior_stats = attributes
+            return result
+        except requests.exceptions.RequestException:
+            return result
+
 
 def get_virustotal_client(config_file: str = None) -> VirusTotalAPI:
     """
@@ -422,5 +458,5 @@ if __name__ == '__main__':
         file_hash, result = client.scan_file(file_path)
         print(result)
     except Exception as e:
-        print(f"[ERRO] {e}")
+        print(f"❌ Erro: {e}")
         sys.exit(1)
