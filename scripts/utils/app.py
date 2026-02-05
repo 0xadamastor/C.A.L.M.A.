@@ -15,7 +15,7 @@ TEMPLATES_DIR = BASE_DIR / 'templates'
 STATIC_DIR = BASE_DIR / 'assets'
 
 app = Flask(__name__, template_folder=str(TEMPLATES_DIR), static_folder=str(STATIC_DIR))
-app.secret_key = os.environ.get('CALMA_SECRET_KEY', os.urandom(24).hex())
+app.secret_key = 'calma-secure-key-2025'
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -47,6 +47,8 @@ DEFAULT_CONFIG = {
     'cron_enabled': False,
     'cron_interval': 5,
     'cron_interval_unit': 'minutes',
+    'require_vm': True,
+    'vm_warning_only': False,
     'labels': {
         'clean': 'Clean',
         'infected': 'Infected',
@@ -324,20 +326,23 @@ def api_clean_emails():
 
 def check_virtual_machine():
     is_vm = False
-    vm_type = "Desconhecido"
+    vm_type = None
+    allowed_vm_types = {
+        'virtualbox', 'vmware', 'kvm', 'qemu', 'xen', 'hyper-v', 'hyperv', 'parallels', 'bhyve'
+    }
     
     try:
         if os.path.exists('/sys/class/dmi/id/product_name'):
             with open('/sys/class/dmi/id/product_name', 'r') as f:
                 product_name = f.read().strip()
-                if any(x in product_name for x in ['VirtualBox', 'VMware', 'KVM', 'QEMU', 'Xen']):
+                if any(x.lower() in product_name.lower() for x in allowed_vm_types):
                     is_vm = True
                     vm_type = product_name
         
         if not is_vm and os.path.exists('/sys/class/dmi/id/sys_vendor'):
             with open('/sys/class/dmi/id/sys_vendor', 'r') as f:
                 sys_vendor = f.read().strip()
-                if any(x in sys_vendor for x in ['QEMU', 'VirtualBox', 'VMware', 'innotek', 'Xen', 'Parallels']):
+                if any(x.lower() in sys_vendor.lower() for x in allowed_vm_types):
                     is_vm = True
                     vm_type = sys_vendor
         
@@ -346,10 +351,12 @@ def check_virtual_machine():
                 result = subprocess.run(['systemd-detect-virt', '--quiet'], 
                                       capture_output=True, timeout=2)
                 if result.returncode == 0:
-                    is_vm = True
                     vm_result = subprocess.run(['systemd-detect-virt'], 
                                              capture_output=True, text=True, timeout=2)
-                    vm_type = vm_result.stdout.strip() if vm_result.returncode == 0 else "Virtual Machine"
+                    detected = vm_result.stdout.strip() if vm_result.returncode == 0 else "unknown"
+                    vm_type = detected or "unknown"
+                    if vm_type.lower() in allowed_vm_types:
+                        is_vm = True
             except:
                 pass
         
@@ -357,10 +364,11 @@ def check_virtual_machine():
             try:
                 result = subprocess.run(['lscpu'], capture_output=True, text=True, timeout=2)
                 if 'Hypervisor vendor' in result.stdout:
-                    is_vm = True
                     for line in result.stdout.split('\n'):
                         if 'Hypervisor vendor' in line:
                             vm_type = line.split(':')[1].strip()
+                            if vm_type.lower() in allowed_vm_types:
+                                is_vm = True
                             break
             except:
                 pass
@@ -368,11 +376,18 @@ def check_virtual_machine():
     except Exception as e:
         logger.error(f"Erro ao verificar VM: {e}")
     
+    if is_vm:
+        message = f"Ambiente Virtual: {vm_type}"
+    elif vm_type:
+        message = f"Ambiente não seguro detectado: {vm_type}"
+    else:
+        message = "Sistema Físico - RISCO ELEVADO!"
+
     return {
         'is_vm': is_vm,
         'vm_type': vm_type if is_vm else None,
         'safe': is_vm,
-        'message': f"Ambiente Virtual: {vm_type}" if is_vm else "Sistema Físico - RISCO ELEVADO!"
+        'message': message
     }
 
 
@@ -399,6 +414,10 @@ def api_analyses():
 def api_cron_enable():
     try:
         config = load_config()
+        vm_status = check_virtual_machine()
+        if config.get('require_vm', True) and not vm_status.get('safe', False):
+            if not config.get('vm_warning_only', True):
+                return jsonify({'success': False, 'message': 'Execução bloqueada: VM obrigatória não detectada'}), 400
         data = request.get_json()
         interval = data.get('interval', 5)
         interval_unit = data.get('interval_unit', 'minutes')
@@ -408,15 +427,23 @@ def api_cron_enable():
         
                                                           
         if interval_unit == 'seconds':
-                                                                                  
-                                                                    
-            cron_entry = f"*/{interval} * * * * cd {BASE_DIR} && ./calma.sh >> {cron_log} 2>&1"
+            if interval <= 0 or interval >= 60:
+                return jsonify({'success': False, 'message': 'Intervalo em segundos deve ser entre 1 e 59'}), 400
+            if 60 % interval != 0:
+                return jsonify({'success': False, 'message': 'Intervalo em segundos deve dividir 60 (ex: 1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30)'}), 400
+
+            cron_entries = []
+            for offset in range(0, 60, interval):
+                if offset == 0:
+                    cron_entries.append(f"* * * * * cd {BASE_DIR} && ./calma.sh >> {cron_log} 2>&1")
+                else:
+                    cron_entries.append(f"* * * * * sleep {offset}; cd {BASE_DIR} && ./calma.sh >> {cron_log} 2>&1")
         elif interval_unit == 'hours':
                                                                   
-            cron_entry = f"0 */{interval} * * * cd {BASE_DIR} && ./calma.sh >> {cron_log} 2>&1"
+            cron_entries = [f"0 */{interval} * * * cd {BASE_DIR} && ./calma.sh >> {cron_log} 2>&1"]
         else:                    
                                        
-            cron_entry = f"*/{interval} * * * * cd {BASE_DIR} && ./calma.sh >> {cron_log} 2>&1"
+            cron_entries = [f"*/{interval} * * * * cd {BASE_DIR} && ./calma.sh >> {cron_log} 2>&1"]
         
                                            
         try:
@@ -427,7 +454,7 @@ def api_cron_enable():
         
                                 
         lines = [line for line in crontab_content.split('\n') if 'calma.sh' not in line]
-        lines.append(cron_entry)
+        lines.extend(cron_entries)
         
                                
         new_crontab = '\n'.join(lines) + '\n'
@@ -440,7 +467,10 @@ def api_cron_enable():
             config['cron_interval'] = interval
             config['cron_interval_unit'] = interval_unit
             save_config(config)
-            return jsonify({'success': True, 'message': f'Cron job ativado a cada {interval} {interval_unit}'})
+            response = {'success': True, 'message': f'Cron job ativado a cada {interval} {interval_unit}'}
+            if config.get('require_vm', True) and not vm_status.get('safe', False):
+                response['warning'] = vm_status.get('message', 'VM não detectada')
+            return jsonify(response)
         else:
             return jsonify({'success': False, 'message': f'Erro: {stderr}'}), 400
     except Exception as e:
@@ -475,6 +505,11 @@ def api_cron_disable():
 @app.route('/api/run', methods=['POST'])
 def api_run():
     try:
+        config = load_config()
+        vm_status = check_virtual_machine()
+        if config.get('require_vm', True) and not vm_status.get('safe', False):
+            if not config.get('vm_warning_only', True):
+                return jsonify({'success': False, 'message': 'Execução bloqueada: VM obrigatória não detectada'}), 400
         script_path = os.path.join(BASE_DIR, 'calma.sh')
         if not os.path.exists(script_path):
             return jsonify({'success': False, 'message': 'Script calma.sh não encontrado'}), 400
@@ -485,7 +520,10 @@ def api_run():
         with open(log_file, 'w') as f:
             subprocess.Popen([script_path], stdout=f, stderr=subprocess.STDOUT, cwd=BASE_DIR)
         
-        return jsonify({'success': True, 'message': 'Script iniciado em background', 'log': log_file})
+        response = {'success': True, 'message': 'Script iniciado em background', 'log': log_file}
+        if config.get('require_vm', True) and not vm_status.get('safe', False):
+            response['warning'] = vm_status.get('message', 'VM não detectada')
+        return jsonify(response)
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 400
 
