@@ -48,7 +48,7 @@ carregar_config_json() {
         exit 1
     fi
 
-    EMAIL_USER=$(jq -r '.email_user // ""' "$CONFIG_FILE")
+    EMAIL_USER=$(jq -r '.email_user // "calma.sandbox@gmail.com"' "$CONFIG_FILE")
     EMAIL_PASS=$(jq -r '.email_pass // ""' "$CONFIG_FILE")
     EMAIL_SERVER=$(jq -r '.email_server // "imap.gmail.com"' "$CONFIG_FILE")
     EMAIL_PORT=$(jq -r '.email_port // 993' "$CONFIG_FILE")
@@ -61,7 +61,7 @@ carregar_config_json() {
     ENABLE_METADATA=$(jq -r '.enable_metadata // true' "$CONFIG_FILE")
     
     # VirusTotal Configuration
-    VIRUSTOTAL_ENABLED=$(jq -r '.virustotal_enabled // false' "$CONFIG_FILE")
+    VIRUSTOTAL_ENABLED=$(jq -r '.virustotal_enabled // true' "$CONFIG_FILE")
     VIRUSTOTAL_API_KEY=$(jq -r '.virustotal_api_key // ""' "$CONFIG_FILE")
     VIRUSTOTAL_TIMEOUT=$(jq -r '.virustotal_timeout // 300' "$CONFIG_FILE")
     FALLBACK_TO_LOCAL=$(jq -r '.fallback_to_local // true' "$CONFIG_FILE")
@@ -82,8 +82,8 @@ INFECTED_DIR="${EMAIL_ATTACHMENTS_DIR}/infetados"
 SUSPICIOUS_DIR="${EMAIL_ATTACHMENTS_DIR}/suspeitos"
 QUARANTINE_DIR="${DATA_DIR}/quarentena"
 
-REQUIRE_VM="true"
-VM_WARNING_ONLY="false"
+REQUIRE_VM="false"
+VM_WARNING_ONLY="true"
 
 NEUTRALIZE_INFECTED="true"
 NEUTRALIZE_SUSPICIOUS="true"
@@ -545,53 +545,39 @@ analisar_com_virustotal() {
     if [ -d "${BASE_DIR}/venv" ]; then
         python_cmd="${BASE_DIR}/venv/bin/python"
     fi
-    
-    local script="${BASE_DIR}/scripts/detection/analyze_with_virustotal.py"
+
+    local script="${BASE_DIR}/scripts/detection/detect_malware_universal.py"
     
     if [ ! -f "$script" ]; then
-        log_message "WARN" "Script VirusTotal não encontrado. Usando análise local."
+        log_message "WARN" "Script de detecção não encontrado."
         return 1
     fi
     
-    # Executa análise com VirusTotal (sem email para não poluir)
-    local result_file="/tmp/calma_vt_result_$$.txt"
+    # Executa análise com detecção universal (VirusTotal + análise local)
+    local result_file="/tmp/calma_detection_result_$$.txt"
     
-    if $python_cmd "$script" "$file_path" --no-email --verbose > "$result_file" 2>&1; then
-        local exit_code=$?
+    # Executa o script e captura saída
+    if $python_cmd "$script" "$file_path" --score-only > "$result_file" 2>&1; then
+        local output=$(cat "$result_file")
         
-        # Mapeia exit codes para scores
-        case $exit_code in
-            0)
-                # LIMPO
-                log_message "SUCCESS" "VirusTotal: Ficheiro LIMPO"
-                echo "15"
-                rm -f "$result_file"
-                return 0
-                ;;
-            1)
-                # SUSPEITO
-                log_message "WARN" "VirusTotal: Ficheiro SUSPEITO"
-                echo "55"
-                rm -f "$result_file"
-                return 0
-                ;;
-            2)
-                # MALWARE
-                log_message "ERROR" "VirusTotal: MALWARE DETECTADO!"
-                echo "92"
-                rm -f "$result_file"
-                return 0
-                ;;
-        esac
-    else
-        log_message "WARN" "Erro na análise VirusTotal: $(cat "$result_file" 2>/dev/null | head -5)"
-        rm -f "$result_file"
-        return 1
+        # Tenta extrair último número (score) do output
+        local score=$(echo "$output" | tail -1 | grep -oE '[0-9]+$' | tail -1)
+        
+        if [[ -n "$score" && "$score" =~ ^[0-9]+$ ]]; then
+            log_message "SUCCESS" "Análise concluída. Score: $score/100"
+            echo "$score"
+            rm -f "$result_file"
+            return 0
+        fi
     fi
     
+    # Se houve erro, tenta ler a saída para logging
+    local error_msg=$(cat "$result_file" 2>/dev/null | head -3)
+    log_message "WARN" "Erro na análise: $error_msg"
     rm -f "$result_file"
     return 1
 }
+
 
 calcular_score_risco() {
     local file_path="$1"
