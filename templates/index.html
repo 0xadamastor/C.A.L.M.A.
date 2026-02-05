@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CALMA SOC</title>
+    <link rel="icon" type="image/png" href="../assets/calmasime.png">
     <style>
         * {
             margin: 0;
@@ -15,8 +16,9 @@
             --primary: #ff0000;
             --success: #00ff00;
             --text: #ffffff;
-            --text-secondary: rgba(255, 255, 255, 0.6);
-            --border: rgba(255, 255, 255, 0.1);
+            --text-secondary: rgba(255, 255, 255, 0.7);
+            --border: rgba(255, 0, 0, 0.3);
+            --border-subtle: rgba(255, 0, 0, 0.2);
             --bg: #000000;
         }
 
@@ -34,6 +36,8 @@
             display: flex;
             flex-direction: column;
             min-height: 100vh;
+            position: relative;
+            z-index: 1;
         }
 
         /* Header */
@@ -43,6 +47,7 @@
             align-items: center;
             padding: 24px;
             border-bottom: 1px solid var(--border);
+            background: rgba(255, 0, 0, 0.03);
         }
 
         .header-left {
@@ -51,13 +56,13 @@
             gap: 24px;
         }
 
-        .logo-image {
+        .assets-image {
             height: 60px;
             width: auto;
             max-width: 200px;
         }
 
-        .logo-section p {
+        .assets-section p {
             font-size: 10px;
             letter-spacing: 0.15em;
             text-transform: uppercase;
@@ -135,13 +140,13 @@
         .metric-card {
             border: 1px solid var(--border);
             padding: 20px;
-            background: transparent;
+            background: rgba(255, 0, 0, 0.03);
             text-align: center;
         }
 
         .metric-card.highlight {
-            border-color: var(--primary);
-            background: rgba(255, 0, 0, 0.05);
+            border: 2px solid var(--primary);
+            background: rgba(255, 0, 0, 0.08);
         }
 
         .metric-label {
@@ -164,7 +169,7 @@
             display: flex;
             flex-direction: column;
             border: 1px solid var(--border);
-            background: transparent;
+            background: rgba(255, 0, 0, 0.03);
             overflow: hidden;
         }
 
@@ -176,6 +181,7 @@
             padding: 16px 24px;
             border-bottom: 1px solid var(--border);
             margin: 0;
+            background: rgba(255, 0, 0, 0.05);
         }
 
         .log-content {
@@ -191,7 +197,7 @@
         .log-entry {
             margin-bottom: 8px;
             padding-bottom: 8px;
-            border-bottom: 1px solid var(--border);
+            border-bottom: 1px solid var(--border-subtle);
             line-height: 1.4;
         }
 
@@ -246,14 +252,15 @@
             border: 1px solid var(--border);
             padding: 12px;
             margin-bottom: 10px;
-            background: transparent;
+            background: rgba(255, 0, 0, 0.03);
             font-size: 9px;
             font-family: 'Courier New', monospace;
             line-height: 1.3;
         }
 
         .detonation-card.malicious {
-            border-color: var(--primary);
+            border: 2px solid var(--primary);
+            background: rgba(255, 0, 0, 0.08);
         }
 
         .detonation-card.suspicious {
@@ -313,6 +320,7 @@
             text-transform: uppercase;
             text-align: center;
             color: var(--text-secondary);
+            background: rgba(255, 0, 0, 0.03);
         }
 
         /* Scrollbar */
@@ -356,7 +364,7 @@
         .config-section {
             border: 1px solid var(--border);
             padding: 24px;
-            background: transparent;
+            background: rgba(255, 0, 0, 0.03);
         }
 
         .config-section h3 {
@@ -388,7 +396,7 @@
         .form-group textarea {
             width: 100%;
             padding: 10px;
-            background: transparent;
+            background: rgba(255, 0, 0, 0.02);
             border: 1px solid var(--border);
             color: var(--text);
             font-family: 'Courier New', monospace;
@@ -400,7 +408,13 @@
         .form-group select:focus,
         .form-group textarea:focus {
             outline: none;
-            border-color: var(--text-secondary);
+            border-color: var(--primary);
+        }
+
+        .form-group select option {
+            background: #000000;
+            color: var(--text);
+            padding: 10px;
         }
         
         .form-group small {
@@ -473,12 +487,13 @@
         .stat-card {
             border: 1px solid var(--border);
             padding: 20px;
-            background: transparent;
+            background: rgba(255, 0, 0, 0.03);
             text-align: center;
         }
 
         .stat-card.infected {
-            border-color: var(--primary);
+            border: 2px solid var(--primary);
+            background: rgba(255, 0, 0, 0.08);
         }
 
         .stat-label {
@@ -498,7 +513,7 @@
         .logs-container {
             border: 1px solid var(--border);
             padding: 16px;
-            background: transparent;
+            background: rgba(255, 0, 0, 0.03);
             max-height: none;
             overflow-y: auto;
             font-family: 'Courier New', monospace;
@@ -527,6 +542,150 @@
         .log-phase {
             color: var(--text);
             font-weight: 500;
+        }
+
+        /* Flying assets Animation - Paper Airplane */
+        .flying-assets {
+            position: fixed;
+            width: 80px;
+            height: 80px;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.2;
+            transform: scaleX(-1);
+        }
+
+        .flying-assets-1 {
+            animation: paperFly1 30s infinite cubic-bezier(0.45, 0.05, 0.55, 0.95), paperWobble 2s infinite ease-in-out;
+        }
+
+        .flying-assets-2 {
+            animation: paperFly2 35s infinite cubic-bezier(0.45, 0.05, 0.55, 0.95), paperWobble 2.3s infinite ease-in-out;
+            animation-delay: -10s;
+        }
+
+        .flying-assets-3 {
+            animation: paperFly3 28s infinite cubic-bezier(0.45, 0.05, 0.55, 0.95), paperWobble 1.8s infinite ease-in-out;
+            animation-delay: -20s;
+        }
+
+        @keyframes paperFly1 {
+            0% {
+                top: 20%;
+                left: -10%;
+                transform: scaleX(-1) rotate(-15deg);
+            }
+            15% {
+                top: 30%;
+                left: 25%;
+                transform: scaleX(-1) rotate(5deg);
+            }
+            30% {
+                top: 15%;
+                left: 50%;
+                transform: scaleX(-1) rotate(-10deg);
+            }
+            45% {
+                top: 35%;
+                left: 75%;
+                transform: scaleX(-1) rotate(8deg);
+            }
+            60% {
+                top: 60%;
+                left: 85%;
+                transform: scaleX(-1) rotate(25deg);
+            }
+            75% {
+                top: 70%;
+                left: 50%;
+                transform: scaleX(-1) rotate(-5deg);
+            }
+            90% {
+                top: 45%;
+                left: 15%;
+                transform: scaleX(-1) rotate(-20deg);
+            }
+            100% {
+                top: 20%;
+                left: -10%;
+                transform: scaleX(-1) rotate(-15deg);
+            }
+        }
+
+        @keyframes paperFly2 {
+            0% {
+                top: 60%;
+                left: -10%;
+                transform: scaleX(-1) rotate(10deg);
+            }
+            20% {
+                top: 40%;
+                left: 30%;
+                transform: scaleX(-1) rotate(-8deg);
+            }
+            40% {
+                top: 25%;
+                left: 60%;
+                transform: scaleX(-1) rotate(12deg);
+            }
+            60% {
+                top: 45%;
+                left: 90%;
+                transform: scaleX(-1) rotate(-15deg);
+            }
+            80% {
+                top: 70%;
+                left: 40%;
+                transform: scaleX(-1) rotate(5deg);
+            }
+            100% {
+                top: 60%;
+                left: -10%;
+                transform: scaleX(-1) rotate(10deg);
+            }
+        }
+
+        @keyframes paperFly3 {
+            0% {
+                top: 40%;
+                left: 110%;
+                transform: scaleX(-1) rotate(-12deg);
+            }
+            25% {
+                top: 20%;
+                left: 70%;
+                transform: scaleX(-1) rotate(8deg);
+            }
+            50% {
+                top: 50%;
+                left: 40%;
+                transform: scaleX(-1) rotate(-18deg);
+            }
+            75% {
+                top: 65%;
+                left: 10%;
+                transform: scaleX(-1) rotate(15deg);
+            }
+            100% {
+                top: 40%;
+                left: 110%;
+                transform: scaleX(-1) rotate(-12deg);
+            }
+        }
+
+        @keyframes paperWobble {
+            0%, 100% {
+                transform: translateY(0px) rotate(0deg) scaleX(-1);
+            }
+            25% {
+                transform: translateY(-5px) rotate(2deg) scaleX(-1);
+            }
+            50% {
+                transform: translateY(3px) rotate(-1deg) scaleX(-1);
+            }
+            75% {
+                transform: translateY(-3px) rotate(1deg) scaleX(-1);
+            }
         }
 
         /* Clean Emails Styles */
@@ -615,14 +774,307 @@
                 max-height: 50vh;
             }
         }
+
+        /* Easter Egg Page */
+        #easterEggPage {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000000;
+            z-index: 9999;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #easterEggPage.active {
+            display: flex;
+        }
+
+        #easterEggPage .flying-assets {
+            opacity: 0.6;
+            width: 120px;
+            height: 120px;
+            pointer-events: auto;
+            cursor: grab;
+            transition: opacity 0.2s ease;
+        }
+
+        #easterEggPage .flying-assets:hover {
+            opacity: 0.8;
+        }
+
+        #easterEggPage .flying-assets.dragging {
+            cursor: grabbing;
+            opacity: 0.9;
+            z-index: 10001;
+            animation: none !important;
+        }
+
+        #easterEggPage .flying-assets.restoring {
+            transition: all 1.5s cubic-bezier(0.4, 0.0, 0.2, 1);
+            pointer-events: none;
+        }
+
+        .back-button {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 16px 40px;
+            background: transparent;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 10000;
+        }
+
+        .back-button:hover {
+            background: rgba(255, 0, 0, 0.1);
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.4);
+        }
+
+        .spawn-button {
+            position: fixed;
+            top: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 30px;
+            background: transparent;
+            border: 2px solid var(--success);
+            color: var(--success);
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 10000;
+        }
+
+        .spawn-button:hover {
+            background: rgba(0, 255, 0, 0.1);
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.4);
+        }
+
+        .controls-info {
+            position: fixed;
+            top: 40px;
+            right: 40px;
+            color: #666666;
+            font-size: 11px;
+            text-align: right;
+            line-height: 1.6;
+            z-index: 10000;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 0.02em;
+        }
+
+        .controls-info div {
+            margin: 4px 0;
+        }
+
+        .assets-image {
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .assets-image:hover {
+            transform: scale(1.05);
+        }
+
+        /* City Background */
+        #easterEggPage .city-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: -1;
+            background: linear-gradient(to bottom, #000000 0%, #1a1a1a 100%);
+        }
+
+        .city-layer {
+            position: absolute;
+            bottom: 0;
+            width: 200%;
+            height: 100%;
+            display: flex;
+            align-items: flex-end;
+            gap: 20px;
+            padding: 0 20px;
+        }
+
+        .city-layer-1 {
+            animation: cityMove1 60s linear infinite;
+            opacity: 0.15;
+        }
+
+        .city-layer-2 {
+            animation: cityMove2 40s linear infinite;
+            opacity: 0.1;
+            height: 80%;
+        }
+
+        .city-layer-3 {
+            animation: cityMove3 25s linear infinite;
+            opacity: 0.08;
+            height: 60%;
+        }
+
+        .building {
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            flex-shrink: 0;
+        }
+
+        @keyframes cityMove1 {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        @keyframes cityMove2 {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        @keyframes cityMove3 {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        /* Onboarding Section */
+        .onboarding-content {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            padding: 24px;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .onboarding-airplanes {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .onboarding-airplanes .flying-assets {
+            opacity: 0.15;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .summary-card {
+            border: 2px solid var(--border);
+            padding: 24px;
+            background: rgba(255, 0, 0, 0.03);
+        }
+
+        .summary-card h3 {
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+            color: var(--text);
+        }
+
+        .summary-stat {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-size: 12px;
+        }
+
+        .summary-stat-label {
+            color: var(--text-secondary);
+        }
+
+        .summary-stat-value {
+            color: var(--text);
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+        }
+
+        .log-summary {
+            border: 2px solid var(--border);
+            padding: 20px;
+            background: rgba(255, 0, 0, 0.03);
+            position: relative;
+            z-index: 1;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .log-summary h3 {
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+            color: var(--text);
+        }
     </style>
 </head>
 <body>
+    <script>
+        // Apply accessibility settings immediately to prevent flash
+        (function() {
+            try {
+                const settings = JSON.parse(localStorage.getItem('accessibility_settings') || '{}');
+                if (settings.theme) document.body.setAttribute('data-theme', settings.theme);
+                if (settings.fontSize) document.body.setAttribute('data-font-size', settings.fontSize);
+                if (settings.reduceMotion !== undefined) document.body.setAttribute('data-reduce-motion', String(settings.reduceMotion));
+            } catch (e) {
+                console.error('Error loading accessibility settings:', e);
+            }
+        })();
+    </script>
+    <!-- Easter Egg Page -->
+    <div id="easterEggPage">
+        <div class="city-background">
+            <div class="city-layer city-layer-1" id="cityLayer1"></div>
+            <div class="city-layer city-layer-2" id="cityLayer2"></div>
+            <div class="city-layer city-layer-3" id="cityLayer3"></div>
+        </div>
+        <img src="../assets/calmasime.png" alt="Flying assets" class="flying-assets flying-assets-1">
+        <img src="../assets/calmasime.png" alt="Flying assets" class="flying-assets flying-assets-2">
+        <img src="../assets/calmasime.png" alt="Flying assets" class="flying-assets flying-assets-3">
+        <button class="spawn-button" onclick="spawnNewPlane()">+ Spawn Plane</button>
+        <button class="back-button" onclick="hideEasterEgg()">Go Back</button>
+        <div class="controls-info">
+            <div>Drag: Hold & Move</div>
+            <div>Throw: Release</div>
+            <div>Freeze: Shift + Release</div>
+            <div>Return to Flight: Right-Click</div>
+        </div>
+    </div>
+
     <div id="app">
         <header>
             <div class="header-left">
-                <div class="logo-section">
-                    <img src="/assets/calma.png" alt="CALMA Logo" class="logo-image">
+                <div class="assets-section">
+                    <img src="../assets/calma.png" alt="CALMA assets" class="assets-image" onclick="showEasterEgg()">
                 </div>
             </div>
             <div class="header-status">
@@ -632,15 +1084,16 @@
         </header>
 
         <nav>
-            <button class="nav-btn active" data-tab="dashboard">Dashboard</button>
-            <button class="nav-btn" data-tab="clean-emails">Clean Emails</button>
+            <button class="nav-btn active" data-tab="onboarding">Overview</button>
+            <button class="nav-btn" data-tab="dashboard">Dashboard</button>
             <button class="nav-btn" data-tab="config">Configuration</button>
             <button class="nav-btn" data-tab="monitoring">Monitoring</button>
             <button class="nav-btn" data-tab="logs">Logs</button>
+            <button class="nav-btn" data-tab="clean-emails">Clean Emails</button>
         </nav>
 
         <main>
-            <div id="dashboard" class="content active">
+            <div id="dashboard" class="content">
                 <aside>
                     <div class="metric-card">
                         <div class="metric-label">Emails Today</div>
@@ -684,17 +1137,72 @@
                 </section>
             </div>
 
-            <div id="clean-emails" class="content">
-                <div class="config-content">
-                    <div class="config-section">
-                        <h2>Clean Emails</h2>
-                        <div class="clean-emails-info">
-                            <p>Total Clean Emails: <span id="cleanEmailsCount">0</span></p>
-                        </div>
-                        <div id="cleanEmailsList" class="clean-emails-list">
-                            <div class="clean-email-item">
-                                <div class="email-loading">Carregando emails limpos...</div>
+            <div id="onboarding" class="content active">
+                <div class="onboarding-content">
+                    <div class="onboarding-airplanes">
+                        <img src="../assets/calmasime.png" alt="Flying assets" class="flying-assets flying-assets-1">
+                        <img src="../assets/calmasime.png" alt="Flying assets" class="flying-assets flying-assets-2">
+                        <img src="../assets/calmasime.png" alt="Flying assets" class="flying-assets flying-assets-3">
+                    </div>
+                    
+                    <div class="summary-grid">
+                        <div class="summary-card">
+                            <h3>System Status</h3>
+                            <div class="summary-stat">
+                                <span class="summary-stat-label">Status:</span>
+                                <span class="summary-stat-value" id="summaryStatus">Idle</span>
                             </div>
+                            <div class="summary-stat">
+                                <span class="summary-stat-label">Uptime:</span>
+                                <span class="summary-stat-value" id="summaryUptime">--</span>
+                            </div>
+                            <div class="summary-stat">
+                                <span class="summary-stat-label">Cron Enabled:</span>
+                                <span class="summary-stat-value" id="summaryCron">No</span>
+                            </div>
+                        </div>
+
+                        <div class="summary-card">
+                            <h3>Analysis Summary</h3>
+                            <div class="summary-stat">
+                                <span class="summary-stat-label">Total Analyzed:</span>
+                                <span class="summary-stat-value" id="summaryTotal">0</span>
+                            </div>
+                            <div class="summary-stat">
+                                <span class="summary-stat-label">Clean Files:</span>
+                                <span class="summary-stat-value" id="summaryClean">0</span>
+                            </div>
+                            <div class="summary-stat">
+                                <span class="summary-stat-label">Malicious Files:</span>
+                                <span class="summary-stat-value" id="summaryMalicious">0</span>
+                            </div>
+                            <div class="summary-stat">
+                                <span class="summary-stat-label">Suspicious Files:</span>
+                                <span class="summary-stat-value" id="summarySuspicious">0</span>
+                            </div>
+                        </div>
+
+                        <div class="summary-card">
+                            <h3>Recent Activity</h3>
+                            <div class="summary-stat">
+                                <span class="summary-stat-label">Queue Size:</span>
+                                <span class="summary-stat-value" id="summaryQueue">0</span>
+                            </div>
+                            <div class="summary-stat">
+                                <span class="summary-stat-label">Last Analysis:</span>
+                                <span class="summary-stat-value" id="summaryLastAnalysis">--</span>
+                            </div>
+                            <div class="summary-stat">
+                                <span class="summary-stat-label">Detection Rate:</span>
+                                <span class="summary-stat-value" id="summaryDetectionRate">0%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="log-summary">
+                        <h3>Recent Log Summary</h3>
+                        <div id="logSummaryContent">
+                            <div class="log-line">Loading recent activity...</div>
                         </div>
                     </div>
                 </div>
@@ -750,7 +1258,7 @@
                         
                         <div class="form-group">
                             <label for="cronIntervalValue">Interval Value</label>
-                            <input type="number" id="cronIntervalValue" min="1" max="59" value="5" onchange="updateCronPreview()" oninput="updateCronPreview()">
+                            <input type="number" id="cronIntervalValue" min="1" max="59" value="5" maxlength="2" onchange="updateCronPreview()" oninput="if(this.value.length > 2) { this.value = this.value.slice(0,2); } const maxVal = parseInt(this.max); const val = parseInt(this.value); if(val > maxVal) { this.value = maxVal; } updateCronPreview();">
                             <small style="color: var(--text-secondary); font-size: 9px; margin-top: 4px; display: block;">
                                 <span id="cronRangeInfo">1-59 minutes</span>
                             </small>
@@ -803,11 +1311,10 @@
 
             <div id="monitoring" class="content">
                 <div class="monitoring-content">
-                    <div style="display: flex; gap: 12px; align-items: center;">
+                    <div style="display: flex; gap: 12px;">
                         <button onclick="startMonitoring()" class="btn-primary">Start Monitoring</button>
                         <button onclick="stopMonitoring()">Stop</button>
                         <button onclick="clearOldLogs()">Clear Old Logs</button>
-                        <div id="vmStatus" style="margin-left: auto; padding: 8px 16px; border-radius: 4px; font-size: 11px; font-weight: 600; display: none;"></div>
                     </div>
 
                     <div>
@@ -851,6 +1358,22 @@
                     </div>
                 </div>
             </div>
+
+            <div id="clean-emails" class="content">
+                <div class="config-content">
+                    <div class="config-section">
+                        <h2>Clean Emails</h2>
+                        <div class="clean-emails-info">
+                            <p>Total Clean Emails: <span id="cleanEmailsCount">0</span></p>
+                        </div>
+                        <div id="cleanEmailsList" class="clean-emails-list">
+                            <div class="clean-email-item">
+                                <div class="email-loading">Carregando emails limpos...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </main>
 
         <footer>
@@ -871,6 +1394,460 @@
         let monitoringActive = false;
         let monitoringInterval = null;
 
+        // Easter Egg Functions
+        let draggedPlane = null;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+        let mouseVelocityX = 0;
+        let mouseVelocityY = 0;
+        let currentRotation = 0;
+        let shiftPressed = false;
+
+        function showEasterEgg() {
+            const easterEgg = document.getElementById('easterEggPage');
+            easterEgg.classList.add('active');
+            
+            // Disable context menu in easter egg page
+            easterEgg.addEventListener('contextmenu', (e) => {
+                // Only prevent if not releasing a plane (plane release handler will prevent its own)
+                if (!draggedPlane) {
+                    e.preventDefault();
+                }
+            });
+            
+            // Enable dragging for easter egg planes
+            const planes = easterEgg.querySelectorAll('.flying-assets');
+            planes.forEach(plane => {
+                plane.addEventListener('mousedown', startDrag);
+            });
+            
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', stopDrag);
+        }
+
+        function hideEasterEgg() {
+            const easterEgg = document.getElementById('easterEggPage');
+            easterEgg.classList.remove('active');
+            
+            // Clean up event listeners
+            document.removeEventListener('mousemove', drag);
+            document.removeEventListener('mouseup', stopDrag);
+        }
+
+        function spawnNewPlane() {
+            const easterEgg = document.getElementById('easterEggPage');
+            const existingPlanes = easterEgg.querySelectorAll('.flying-assets');
+            
+            // Check limit of 10 planes
+            if (existingPlanes.length >= 10) {
+                alert('Maximum of 10 planes reached!');
+                return;
+            }
+            
+            const newPlane = document.createElement('img');
+            newPlane.src = '../assets/calmasime.png';
+            newPlane.alt = 'Flying assets';
+            newPlane.className = 'flying-assets';
+            
+            // Random starting position off-screen to fly in
+            const side = Math.floor(Math.random() * 4);
+            if (side === 0) { // left
+                newPlane.style.left = '-120px';
+                newPlane.style.top = Math.random() * window.innerHeight + 'px';
+            } else if (side === 1) { // right
+                newPlane.style.left = window.innerWidth + 'px';
+                newPlane.style.top = Math.random() * window.innerHeight + 'px';
+            } else if (side === 2) { // top
+                newPlane.style.left = Math.random() * window.innerWidth + 'px';
+                newPlane.style.top = '-120px';
+            } else { // bottom
+                newPlane.style.left = Math.random() * window.innerWidth + 'px';
+                newPlane.style.top = window.innerHeight + 'px';
+            }
+            
+            // Apply one of the existing flying animations randomly
+            const animations = ['paperFly1 30s infinite cubic-bezier(0.45, 0.05, 0.55, 0.95), paperWobble 2s infinite ease-in-out',
+                              'paperFly2 35s infinite cubic-bezier(0.45, 0.05, 0.55, 0.95), paperWobble 2.3s infinite ease-in-out',
+                              'paperFly3 28s infinite cubic-bezier(0.45, 0.05, 0.55, 0.95), paperWobble 1.8s infinite ease-in-out'];
+            const randomAnimation = animations[Math.floor(Math.random() * animations.length)];
+            const randomDelay = -(Math.random() * 30); // Random start point in animation
+            
+            newPlane.style.animation = randomAnimation;
+            newPlane.style.animationDelay = randomDelay + 's';
+            
+            // Add drag functionality
+            newPlane.addEventListener('mousedown', startDrag);
+            
+            easterEgg.appendChild(newPlane);
+        }
+
+        function startDrag(e) {
+            draggedPlane = e.target;
+            
+            // Clear any active physics simulation for THIS plane
+            if (draggedPlane.physicsInterval) {
+                clearInterval(draggedPlane.physicsInterval);
+                draggedPlane.physicsInterval = null;
+            }
+            
+            // Get current computed position before stopping animation
+            const rect = draggedPlane.getBoundingClientRect();
+            const currentLeft = rect.left;
+            const currentTop = rect.top;
+            
+            // Stop animation and lock current position
+            draggedPlane.classList.add('dragging');
+            draggedPlane.style.left = currentLeft + 'px';
+            draggedPlane.style.top = currentTop + 'px';
+            
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+            mouseVelocityX = 0;
+            mouseVelocityY = 0;
+            
+            // Get current rotation if it exists
+            const transform = window.getComputedStyle(draggedPlane).transform;
+            if (transform !== 'none') {
+                const values = transform.split('(')[1].split(')')[0].split(',');
+                const a = values[0];
+                const b = values[1];
+                currentRotation = Math.round(Math.atan2(b, a) * (180 / Math.PI));
+            } else {
+                currentRotation = 0;
+            }
+            
+            // Add right-click listener to release plane back to animation
+            const releaseToFly = (rightClickEvent) => {
+                rightClickEvent.preventDefault();
+                rightClickEvent.stopPropagation();
+                
+                if (!draggedPlane) return;
+                
+                const planeToRelease = draggedPlane;
+                const startX = parseFloat(planeToRelease.style.left) || 0;
+                const startY = parseFloat(planeToRelease.style.top) || 0;
+                
+                // Clear draggedPlane first to prevent stopDrag from interfering
+                draggedPlane = null;
+                
+                // Clear any physics
+                if (planeToRelease.physicsInterval) {
+                    clearInterval(planeToRelease.physicsInterval);
+                    planeToRelease.physicsInterval = null;
+                }
+                
+                // Remove dragging state and frozen state
+                planeToRelease.classList.remove('dragging');
+                delete planeToRelease.dataset.frozen;
+                
+                // Add restoring class for smooth transition
+                planeToRelease.classList.add('restoring');
+                planeToRelease.style.animation = 'none';
+                
+                // Animate the restoration with acceleration
+                let progress = 0;
+                const duration = 1500; // 1.5 seconds
+                const startTime = Date.now();
+                
+                const animateRestore = () => {
+                    const elapsed = Date.now() - startTime;
+                    progress = Math.min(elapsed / duration, 1);
+                    
+                    // Easing function for acceleration (starts slow, speeds up)
+                    const eased = progress * progress; // Quadratic ease-in
+                    
+                    // Rotate gradually to horizontal (no position change during restoration)
+                    const currentRotation = parseFloat(planeToRelease.style.transform?.match(/rotate\(([^)]+)deg\)/)?.[1] || 0);
+                    const targetRotation = -10; // Slight upward angle
+                    const rotation = currentRotation + (targetRotation - currentRotation) * progress;
+                    
+                    // Fade and restore opacity
+                    const opacity = 0.6 + (0.4 * progress); // From 0.6 to 1.0
+                    
+                    // Keep position at release point during restoration
+                    planeToRelease.style.left = startX + 'px';
+                    planeToRelease.style.top = startY + 'px';
+                    planeToRelease.style.transform = `scaleX(-1) rotate(${rotation}deg)`;
+                    planeToRelease.style.opacity = opacity;
+                    
+                    if (progress < 1) {
+                        requestAnimationFrame(animateRestore);
+                    } else {
+                        // Wait one frame to ensure position is stable
+                        requestAnimationFrame(() => {
+                            // Animation complete, continue from exact current position
+                            const finalX = parseFloat(planeToRelease.style.left);
+                            const finalY = parseFloat(planeToRelease.style.top);
+                            
+                            // Remove restoring class
+                            planeToRelease.classList.remove('restoring');
+                            
+                            // Start gentle drifting physics from exact current position
+                            let driftVelX = 1 + Math.random() * 2; // Slow forward drift
+                            let driftVelY = (Math.random() - 0.5) * 0.5; // Gentle up/down wobble
+                            let driftX = finalX;
+                            let driftY = finalY;
+                            let driftRot = -10;
+                            
+                            planeToRelease.physicsInterval = setInterval(() => {
+                                // Gentle sine wave motion
+                                const time = Date.now() / 1000;
+                                driftVelY += Math.sin(time) * 0.02;
+                                driftRot = -10 + Math.sin(time * 0.5) * 5;
+                                
+                                driftX += driftVelX;
+                                driftY += driftVelY;
+                                
+                                // Wrap around screen
+                                const planeWidth = planeToRelease.offsetWidth;
+                                const planeHeight = planeToRelease.offsetHeight;
+                                
+                                if (driftX > window.innerWidth) {
+                                    driftX = -planeWidth;
+                                }
+                                if (driftX < -planeWidth) {
+                                    driftX = window.innerWidth;
+                                }
+                                if (driftY > window.innerHeight - planeHeight) {
+                                    driftY = window.innerHeight - planeHeight;
+                                    driftVelY = -Math.abs(driftVelY);
+                                }
+                                if (driftY < 0) {
+                                    driftY = 0;
+                                    driftVelY = Math.abs(driftVelY);
+                                }
+                                
+                                planeToRelease.style.left = driftX + 'px';
+                                planeToRelease.style.top = driftY + 'px';
+                                planeToRelease.style.transform = `scaleX(-1) rotate(${driftRot}deg)`;
+                                planeToRelease.style.opacity = '0.6';
+                            }, 16);
+                        });
+                    }
+                };
+                
+                requestAnimationFrame(animateRestore);
+                
+                // Clean up plane-specific listener
+                planeToRelease.removeEventListener('contextmenu', releaseToFly);
+            };
+            
+            draggedPlane.addEventListener('contextmenu', releaseToFly);
+            
+            e.preventDefault();
+        }
+
+        function drag(e) {
+            if (!draggedPlane) return;
+            
+            // Track shift key
+            shiftPressed = e.shiftKey;
+            
+            // Calculate velocity
+            mouseVelocityX = e.clientX - lastMouseX;
+            mouseVelocityY = e.clientY - lastMouseY;
+            
+            // Calculate rotation based on movement direction
+            const angle = Math.atan2(mouseVelocityY, mouseVelocityX) * (180 / Math.PI);
+            
+            // Smooth rotation transition
+            if (Math.abs(mouseVelocityX) > 1 || Math.abs(mouseVelocityY) > 1) {
+                currentRotation = angle;
+            }
+            
+            // Position the plane at cursor
+            const planeWidth = draggedPlane.offsetWidth;
+            const planeHeight = draggedPlane.offsetHeight;
+            
+            draggedPlane.style.left = (e.clientX - planeWidth / 2) + 'px';
+            draggedPlane.style.top = (e.clientY - planeHeight / 2) + 'px';
+            draggedPlane.style.transform = `scaleX(-1) rotate(${currentRotation}deg)`;
+            
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+        }
+
+        function stopDrag(e) {
+            // Ignore right-click mouseup events (button 2)
+            if (e && e.button === 2) {
+                return;
+            }
+            
+            if (draggedPlane) {
+                // Keep the plane at its current position permanently
+                draggedPlane.style.animation = 'none';
+                draggedPlane.classList.remove('dragging');
+                
+                const thrownPlane = draggedPlane;
+                
+                draggedPlane = null;
+                
+                // If Shift was pressed, freeze the plane stationary (no physics)
+                if (shiftPressed) {
+                    // Mark plane as frozen and keep it grabbable
+                    thrownPlane.dataset.frozen = 'true';
+                    thrownPlane.style.opacity = '0.8';
+                    // Plane stays at current position, no physics
+                    return;
+                }
+                
+                // Remove frozen state if it was previously frozen
+                delete thrownPlane.dataset.frozen;
+                thrownPlane.style.opacity = '';
+                
+                // Start physics simulation with throw velocity
+                let velocityX = mouseVelocityX;
+                let velocityY = mouseVelocityY;
+                let rotation = currentRotation;
+                let currentX = parseFloat(thrownPlane.style.left);
+                let currentY = parseFloat(thrownPlane.style.top);
+                
+                // Only start physics if there's meaningful velocity
+                const initialSpeed = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
+                if (initialSpeed < 1) {
+                    // Not thrown, just dropped - no physics needed
+                    return;
+                }
+                
+                // Store physics simulation interval on the plane element itself
+                thrownPlane.physicsInterval = setInterval(() => {
+                    // Apply friction (air resistance)
+                    velocityX *= 0.95;
+                    velocityY *= 0.95;
+                    
+                    // Check if plane has stopped moving horizontally
+                    const speed = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
+                    
+                    // Always apply gravity (not just when slowing down)
+                    velocityY += 0.3;
+                    
+                    // Update position
+                    currentX += velocityX;
+                    currentY += velocityY;
+                    
+                    // Update rotation to match velocity direction
+                    if (Math.abs(velocityX) > 0.5 || Math.abs(velocityY) > 0.5) {
+                        rotation = Math.atan2(velocityY, velocityX) * (180 / Math.PI);
+                    }
+                    
+                    // Check boundaries
+                    const planeWidth = thrownPlane.offsetWidth;
+                    const planeHeight = thrownPlane.offsetHeight;
+                    
+                    // Collision detection with other planes (including frozen ones)
+                    const easterEgg = document.getElementById('easterEggPage');
+                    const allPlanes = easterEgg.querySelectorAll('.flying-assets');
+                    allPlanes.forEach(otherPlane => {
+                        if (otherPlane === thrownPlane || otherPlane.classList.contains('dragging')) return;
+                        
+                        const otherRect = otherPlane.getBoundingClientRect();
+                        const thisRect = {
+                            left: currentX,
+                            top: currentY,
+                            right: currentX + planeWidth,
+                            bottom: currentY + planeHeight
+                        };
+                        
+                        // Check if planes are colliding
+                        if (thisRect.left < otherRect.right &&
+                            thisRect.right > otherRect.left &&
+                            thisRect.top < otherRect.bottom &&
+                            thisRect.bottom > otherRect.top) {
+                            
+                            // Collision detected - both planes drop
+                            velocityX *= 0.3; // Reduce horizontal velocity
+                            velocityY = Math.abs(velocityY) + 5; // Force downward velocity
+                            
+                            // If other plane is frozen, unfreeze it
+                            if (otherPlane.dataset.frozen === 'true') {
+                                delete otherPlane.dataset.frozen;
+                                otherPlane.style.opacity = '';
+                            }
+                            
+                            // Make the other plane drop too
+                            if (!otherPlane.physicsInterval) {
+                                // Start physics on the other plane if it doesn't have it
+                                const otherX = otherRect.left;
+                                const otherY = otherRect.top;
+                                let otherVelX = 0;
+                                let otherVelY = 5; // Initial drop velocity
+                                let otherRot = 0;
+                                
+                                otherPlane.style.animation = 'none';
+                                
+                                otherPlane.physicsInterval = setInterval(() => {
+                                    otherVelX *= 0.95;
+                                    otherVelY += 0.3; // Gravity
+                                    
+                                    const newX = parseFloat(otherPlane.style.left || otherX) + otherVelX;
+                                    let newY = parseFloat(otherPlane.style.top || otherY) + otherVelY;
+                                    
+                                    otherRot = Math.atan2(otherVelY, otherVelX) * (180 / Math.PI);
+                                    
+                                    // Check boundaries
+                                    if (newY >= window.innerHeight - planeHeight) {
+                                        newY = window.innerHeight - planeHeight;
+                                        otherVelY = -otherVelY * 0.6;
+                                        otherVelX *= 0.8;
+                                    }
+                                    
+                                    if (newY <= 0) {
+                                        newY = 0;
+                                        otherVelY = -otherVelY * 0.6;
+                                    }
+                                    
+                                    otherPlane.style.left = newX + 'px';
+                                    otherPlane.style.top = newY + 'px';
+                                    otherPlane.style.transform = `scaleX(-1) rotate(${otherRot}deg)`;
+                                }, 16);
+                            } else {
+                                // If it already has physics, just add downward velocity
+                                // This is harder to do cleanly, so we'll just affect the current plane
+                            }
+                        }
+                    });
+                    
+                    // Wrap around horizontally (left/right - no collision)
+                    if (currentX < -planeWidth) {
+                        currentX = window.innerWidth;
+                    } else if (currentX > window.innerWidth) {
+                        currentX = -planeWidth;
+                    }
+                    
+                    // Bounce on top and bottom (collision)
+                    if (currentY >= window.innerHeight - planeHeight) {
+                        // Hit the bottom - bounce
+                        currentY = window.innerHeight - planeHeight;
+                        
+                        // If bouncing very slowly, stop the physics
+                        if (Math.abs(velocityY) < 2 && Math.abs(velocityX) < 1) {
+                            clearInterval(thrownPlane.physicsInterval);
+                            thrownPlane.physicsInterval = null;
+                            thrownPlane.style.transform = `scaleX(-1) rotate(0deg)`;
+                            return;
+                        }
+                        
+                        velocityY = -velocityY * 0.6; // Reverse and reduce velocity
+                        velocityX *= 0.8; // Friction on bounce
+                    }
+                    
+                    if (currentY <= 0) {
+                        // Hit the top - bounce
+                        currentY = 0;
+                        velocityY = -velocityY * 0.6; // Reverse and reduce velocity
+                    }
+                    
+                    // Don't stop - keep physics running (removed stopping condition)
+                    
+                    // Apply new position and rotation
+                    thrownPlane.style.left = currentX + 'px';
+                    thrownPlane.style.top = currentY + 'px';
+                    thrownPlane.style.transform = `scaleX(-1) rotate(${rotation}deg)`;
+                    
+                }, 16); // ~60fps
+            }
+        }
+
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             setupNavigation();
@@ -879,7 +1856,48 @@
             refreshLogs();
             loadRecentDetonations();
             loadCleanEmails();
+            generateCity();
         });
+
+        // Generate City Background
+        function generateCity() {
+            const layer1 = document.getElementById('cityLayer1');
+            const layer2 = document.getElementById('cityLayer2');
+            const layer3 = document.getElementById('cityLayer3');
+            
+            // Generate buildings for layer 1 (closest, tallest)
+            for (let i = 0; i < 40; i++) {
+                const building = document.createElement('div');
+                building.className = 'building';
+                const height = 200 + Math.random() * 300;
+                const width = 40 + Math.random() * 80;
+                building.style.width = width + 'px';
+                building.style.height = height + 'px';
+                layer1.appendChild(building);
+            }
+            
+            // Generate buildings for layer 2 (middle)
+            for (let i = 0; i < 35; i++) {
+                const building = document.createElement('div');
+                building.className = 'building';
+                const height = 150 + Math.random() * 200;
+                const width = 35 + Math.random() * 60;
+                building.style.width = width + 'px';
+                building.style.height = height + 'px';
+                layer2.appendChild(building);
+            }
+            
+            // Generate buildings for layer 3 (farthest, shortest)
+            for (let i = 0; i < 30; i++) {
+                const building = document.createElement('div');
+                building.className = 'building';
+                const height = 100 + Math.random() * 150;
+                const width = 30 + Math.random() * 50;
+                building.style.width = width + 'px';
+                building.style.height = height + 'px';
+                layer3.appendChild(building);
+            }
+        }
 
         // Navigation
         function setupNavigation() {
@@ -952,12 +1970,10 @@
         // Atualizar preview de cron e intervalo de valores
         function updateCronPreview() {
             const unit = document.getElementById('cronIntervalUnit').value;
-            const value = parseInt(document.getElementById('cronIntervalValue').value) || 1;
-            
-            // Atualizar range de acordo com a unidade
             const input = document.getElementById('cronIntervalValue');
             const rangeInfo = document.getElementById('cronRangeInfo');
             
+            // Atualizar range de acordo com a unidade
             if (unit === 'seconds') {
                 input.max = '59';
                 rangeInfo.textContent = '1-59 seconds';
@@ -976,6 +1992,9 @@
             if (parseInt(input.value) < 1) {
                 input.value = 1;
             }
+            
+            // Get the corrected value after validation
+            const value = parseInt(input.value) || 1;
             
             // Atualizar preview textual
             let previewText = '';
@@ -1279,7 +2298,7 @@
 
                 const emailsHtml = cleanEmails.map(email => `
                     <div class="clean-email-item">
-                        <div class="email-filename">${escapeHtml(email.filename)}</div>
+                        <div class="email-filename">📧 ${escapeHtml(email.filename)}</div>
                         <div class="email-details">
                             <strong>Sender:</strong> ${escapeHtml(email.sender)}
                         </div>
@@ -1315,26 +2334,6 @@
 
         async function startMonitoring() {
             try {
-                const vmStatus = document.getElementById('vmStatus');
-                const vmCheckResponse = await fetch(`${API_BASE}/vm-check`);
-                const vmData = await vmCheckResponse.json();
-                
-                vmStatus.style.display = 'block';
-                if (vmData.is_vm) {
-                    vmStatus.textContent = `✓ ${vmData.vm_type}`;
-                    vmStatus.style.backgroundColor = '#10b981';
-                    vmStatus.style.color = 'white';
-                } else {
-                    vmStatus.textContent = '⚠ Sistema Físico - RISCO!';
-                    vmStatus.style.backgroundColor = '#ef4444';
-                    vmStatus.style.color = 'white';
-                    
-                    if (!confirm('AVISO: Sistema NÃO está em VM!\n\nIsso representa um RISCO DE SEGURANÇA.\n\nRecomenda-se executar apenas em máquinas virtuais.\n\nDeseja continuar mesmo assim?')) {
-                        vmStatus.style.display = 'none';
-                        return;
-                    }
-                }
-                
                 const config = await fetch(`${API_BASE}/config`).then(r => r.json());
                 const interval = config.cron_interval || 5;
                 const unit = config.cron_interval_unit || 'minutes';
@@ -1356,16 +2355,15 @@
                     }, 3000);
                     refreshDashboard();
                     
+                    // Criar mensagem mais intuitiva
                     let unitText = unit === 'seconds' ? 'segundo' : (unit === 'minutes' ? 'minuto' : 'hora');
                     let intervalText = interval === 1 ? unitText : (interval + ' ' + unit);
                     alert('Monitoramento ativado com sucesso! Intervalo: A cada ' + intervalText);
                 } else {
-                    vmStatus.style.display = 'none';
                     alert('Erro ao ativar monitoramento: ' + result.message);
                 }
             } catch (error) {
                 console.error('Error starting monitoring:', error);
-                document.getElementById('vmStatus').style.display = 'none';
                 alert('Erro ao iniciar monitoramento: ' + error.message);
             }
         }
@@ -1381,7 +2379,6 @@
                 if (result.success) {
                     monitoringActive = false;
                     if (monitoringInterval) clearInterval(monitoringInterval);
-                    document.getElementById('vmStatus').style.display = 'none';
                     refreshDashboard();
                     alert('Monitoramento desativado com sucesso!');
                 } else {
@@ -1393,6 +2390,7 @@
             }
         }
 
+        // Refresh Logs
         async function refreshLogs() {
             try {
                 const response = await fetch(`${API_BASE}/logs?lines=300`);
