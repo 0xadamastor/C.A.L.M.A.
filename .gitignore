@@ -2,6 +2,7 @@
 .env
 *.log
 config/calma_config.json
+config/malware_bazar_config.json
 
 # Local data / Dados locais
 /data/

@@ -102,6 +102,24 @@ STRINGS = {
         'run_again': 'Please run setup again with valid credentials.',
         'yes_no_default_y': 'Y/n',
         'yes_no_default_n': 'y/N',
+        'malware_bazar_config': 'Malware Bazar Test Sender (Optional)',
+        'malware_bazar_intro': '''
+    Configure the random email sender with malware samples.
+    This tool is for TESTING ONLY - sends test emails with malware.
+    
+    Requirements:
+    1. Separate Gmail account for testing (NOT your main account!)
+    2. Malware Bazaar API key (optional, for real malware samples)
+    3. Get API key at: https://bazaar.abuse.ch/api/
+''',
+        'enable_malware_bazar': 'Configure Malware Bazar sender?',
+        'malware_bazar_email': 'Test email address (separate account!):',
+        'malware_bazar_password': 'App Password for test account:',
+        'malware_bazar_api_key': 'Malware Bazaar API key (optional):',
+        'num_emails': 'Number of test emails to send:',
+        'infected_percentage': 'Percentage of infected emails (0-100):',
+        'malware_bazar_saved': 'Malware Bazar configuration saved',
+        'malware_bazar_skipped': 'Malware Bazar sender not configured',
     },
     'pt': {
         'welcome': 'Bem-vindo ao Assistente de Configuracao CALMA!',
@@ -183,6 +201,24 @@ STRINGS = {
         'run_again': 'Execute o setup novamente com credenciais validas.',
         'yes_no_default_y': 'S/n',
         'yes_no_default_n': 's/N',
+        'malware_bazar_config': 'Malware Bazar Test Sender (Opcional)',
+        'malware_bazar_intro': '''
+    Configurar o sender de emails aleatorios com amostras de malware.
+    Esta ferramenta e apenas para TESTES - envia emails com malware.
+    
+    Requisitos:
+    1. Conta Gmail separada para testes (NAO a sua conta principal!)
+    2. Chave API Malware Bazaar (opcional, para amostras reais)
+    3. Obter chave em: https://bazaar.abuse.ch/api/
+''',
+        'enable_malware_bazar': 'Configurar Malware Bazar sender?',
+        'malware_bazar_email': 'Endereco de email de teste (conta separada!):',
+        'malware_bazar_password': 'App Password da conta de teste:',
+        'malware_bazar_api_key': 'Chave API Malware Bazaar (opcional):',
+        'num_emails': 'Numero de emails de teste a enviar:',
+        'infected_percentage': 'Percentagem de emails infectados (0-100):',
+        'malware_bazar_saved': 'Configuracao Malware Bazar guardada',
+        'malware_bazar_skipped': 'Malware Bazar sender nao configurado',
     }
 }
 
@@ -208,7 +244,7 @@ def print_header():
     ║  ╚██████╗██║  ██║███████╗██║ ╚═╝ ██║██║  ██║              ║
     ║   ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝╚═╝  ╚═╝              ║
     ║                                                           ║
-    ║           {t('subtitle'):^43}    ║
+    ║           {t('subtitle'):^43}     ║
     ╚═══════════════════════════════════════════════════════════╝
     """, Colors.CYAN))
 
@@ -272,7 +308,7 @@ def select_language():
 
 def check_requirements():
     """Check system requirements"""
-    print_step(1, 5, t('checking_requirements'))
+    print_step(1, 6, t('checking_requirements'))
     
     issues = []
     
@@ -303,7 +339,7 @@ def check_requirements():
 
 def setup_gmail():
     """Setup Gmail configuration"""
-    print_step(2, 5, t('gmail_config'))
+    print_step(2, 6, t('gmail_config'))
     print(t('gmail_intro'))
     
     email = ask_input(t('enter_email'), "")
@@ -313,7 +349,7 @@ def setup_gmail():
 
 def setup_virustotal():
     """Setup VirusTotal (optional)"""
-    print_step(3, 5, t('vt_config'))
+    print_step(3, 6, t('vt_config'))
     print(t('vt_intro'))
     
     use_vt = ask_yes_no(t('enable_vt'), default=False)
@@ -326,7 +362,7 @@ def setup_virustotal():
 
 def setup_labels():
     """Setup Gmail labels"""
-    print_step(4, 5, t('labels_config'))
+    print_step(4, 6, t('labels_config'))
     print(t('labels_intro'))
     
     use_default = ask_yes_no(t('use_default_labels'), default=True)
@@ -342,7 +378,7 @@ def setup_labels():
 
 def save_config(email, password, vt_enabled, vt_key, labels):
     """Save configuration file"""
-    print_step(5, 5, t('saving_config'))
+    print_step(5, 6, t('saving_config'))
     
     base_dir = Path(__file__).parent
     config_file = base_dir / 'config' / 'calma_config.json'
@@ -399,6 +435,76 @@ def print_next_steps():
     
     print(t('next_steps'))
 
+def setup_malware_bazar():
+    """Setup Malware Bazar sender (optional)"""
+    print_step(6, 6, t('malware_bazar_config'))
+    print(t('malware_bazar_intro'))
+    
+    enable = ask_yes_no(t('enable_malware_bazar'), default=False)
+    
+    if not enable:
+        return None
+    
+    email = ask_input(t('malware_bazar_email'), "")
+    password = ask_input(t('malware_bazar_password'), "", password=True)
+    api_key = ask_input(t('malware_bazar_api_key'), "")
+    num_emails = ask_input(t('num_emails'), "10")
+    infected_pct = ask_input(t('infected_percentage'), "60")
+    
+    try:
+        num_emails = int(num_emails)
+        infected_pct = int(infected_pct)
+        if infected_pct < 0 or infected_pct > 100:
+            infected_pct = 60
+    except:
+        num_emails = 10
+        infected_pct = 60
+    
+    return {
+        'email': email,
+        'password': password,
+        'api_key': api_key,
+        'num_emails': num_emails,
+        'infected_percentage': infected_pct
+    }
+
+def save_malware_bazar_config(config_data):
+    """Save malware bazar configuration"""
+    if not config_data:
+        print(f"  {c('[SKIP]', Colors.YELLOW)} {t('malware_bazar_skipped')}")
+        return
+    
+    base_dir = Path(__file__).parent
+    config_file = base_dir / 'config' / 'malware_bazar_config.json'
+    
+    config = {
+        "email_user": config_data['email'],
+        "email_pass": config_data['password'],
+        "malware_bazaar_api_key": config_data['api_key'] if config_data['api_key'] else "your_malware_bazaar_api_key",
+        "malware_bazaar_api_url": "https://mb-api.abuse.ch/api/v1/",
+        "num_emails": config_data['num_emails'],
+        "infected_percentage": config_data['infected_percentage'],
+        "max_file_size": 26214400,
+        "enabled": True
+    }
+    
+    # Backup existing config
+    if config_file.exists():
+        backup_file = config_file.with_suffix('.json.backup')
+        shutil.copy(config_file, backup_file)
+        print(f"  {t('backup_created')} {backup_file.name}")
+    
+    # Save new config
+    with open(config_file, 'w', encoding='utf-8') as f:
+        json.dump(config, f, indent=4, ensure_ascii=False)
+    
+    print(f"  {c('[OK]', Colors.GREEN)} {t('malware_bazar_saved')}")
+    
+    # Set permissions (Unix only)
+    if os.name != 'nt':
+        os.chmod(config_file, 0o600)
+        print(f"  {c('[OK]', Colors.GREEN)} {t('permissions_set')}")
+
 def main():
     global LANG
     
@@ -443,6 +549,11 @@ def main():
         sys.exit(1)
     
     save_config(email, password, vt_enabled, vt_key, labels)
+    
+    # Step 6: Malware Bazar (optional)
+    print_header()
+    malware_bazar_data = setup_malware_bazar()
+    save_malware_bazar_config(malware_bazar_data)
     
     # Final steps
     print_header()

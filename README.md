@@ -1,7 +1,7 @@
 # CALMA - Containerized Automated Lazy Mail Anti-nasties
 
 ```
-██████╗ █████╗ ██╗     ███╗   ███╗ █████╗
+  █████╗ █████╗ ██╗     ███╗   ███╗ █████╗
 ██╔════╝██╔══██╗██║     ████╗ ████║██╔══██╗
 ██║     ███████║██║     ██╔████╔██║███████║
 ██║     ██╔══██║██║     ██║╚██╔╝██║██╔══██║
@@ -9,11 +9,18 @@
  ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝╚═╝  ╚═╝
 ```
 
-[English](#english) | [Portugues](#portugues)
+---
+
+## 🇬🇧 English | 🇵🇹 Português
+
+**Choose your language / Escolhe o teu idioma:**
+
+- [🇬🇧 **English Documentation**](#-english-documentation)
+- [🇵🇹 **Documentação em Português**](#-documentação-em-português)
 
 ---
 
-## English
+# 🇬🇧 English Documentation
 
 **CALMA** monitors email attachments and classifies them by risk level using machine learning. Safe, isolated, and cross-platform.
 
@@ -45,6 +52,210 @@ python setup.py
 ./calma.sh
 ```
 
+---
+
+## How to Start / Como Começar
+
+### First-Time Setup / Configuração Inicial
+
+#### Step 1: Install Dependencies / Passo 1: Instalar Dependências
+
+**Windows:**
+```bash
+# Use PowerShell or Command Prompt
+python install_universal.py
+```
+
+or just run the install_universal.bat
+
+**Linux/macOS:**
+```bash
+# Make install script executable
+chmod +x install_universal.sh
+
+# Run installation
+./install_universal.sh
+```
+
+**What this does / O que isto faz:**
+- ✓ Checks Python 3.8+ is installed / Verifica Python 3.8+
+- ✓ Installs system dependencies (jq, etc.) / Instala dependências do sistema
+- ✓ Creates virtual environment / Cria ambiente virtual
+- ✓ Installs Python packages / Instala pacotes Python
+- ✓ Creates directory structure / Cria estrutura de diretórios
+- ✓ Creates default config file / Cria ficheiro de configuração padrão
+
+#### Step 2: Configure Gmail / Passo 2: Configurar Gmail
+
+**Option A: Interactive Setup (Recommended) / Opção A: Configuração Interativa (Recomendado)**
+```bash
+python setup.py
+```
+
+The wizard guides you through:
+1. Language selection (English/Portuguese)
+2. Requirements check
+3. Gmail credentials (email + app password)
+4. VirusTotal API key (optional)
+5. Gmail labels configuration
+
+**Option B: Manual Configuration / Opção B: Configuração Manual**
+```bash
+# Copy example config / Copiar configuração exemplo
+cp config/calma_config.example.json config/calma_config.json
+
+# Edit with your credentials / Editar com as suas credenciais
+nano config/calma_config.json  # Linux/macOS
+notepad config/calma_config.json  # Windows
+```
+
+**Required Gmail Setup / Configuração Gmail Necessária:**
+1. Enable 2FA on your Gmail account / Ativar 2FA na conta Gmail
+2. Generate App Password at: https://myaccount.google.com/apppasswords
+3. Use the app password (not your regular password) in config
+
+#### Step 3: Setup Shell Aliases (Optional) / Passo 3: Configurar Atalhos (Opcional)
+
+**Linux/macOS:**
+```bash
+# Add to ~/.bashrc or ~/.zshrc
+echo "source $(pwd)/calma_aliases.sh" >> ~/.bashrc
+
+# Reload shell
+source ~/.bashrc
+```
+
+**Windows (Git Bash):**
+```bash
+# Add to ~/.bashrc
+echo "source $(pwd)/calma_aliases.sh" >> ~/.bashrc
+
+# Reload
+source ~/.bashrc
+```
+
+This gives you convenient commands:
+- `calma` - Run main system
+- `calma-web` - Open web interface
+- `calma-logs` - View recent logs
+- `calma-train` - Retrain ML models
+- `calma-status` - Check system status
+
+---
+
+### Running CALMA / Executar CALMA
+
+#### Method 1: Command Line / Método 1: Linha de Comandos
+
+**With aliases (if configured) / Com atalhos (se configurado):**
+```bash
+calma
+```
+
+**Without aliases / Sem atalhos:**
+```bash
+# Linux/macOS
+./calma.sh
+
+# Windows (Git Bash or WSL)
+bash calma.sh
+```
+
+**What happens when you run it / O que acontece ao executar:**
+1. **Phase 1:** Downloads email attachments from Gmail / Descarrega anexos do Gmail
+2. **Phase 2:** Analyzes files using ML models / Analisa ficheiros com modelos ML
+3. **Phase 3:** Classifies as Clean/Suspicious/Infected / Classifica como Limpo/Suspeito/Infectado
+4. **Phase 4:** Applies Gmail labels automatically / Aplica etiquetas Gmail automaticamente
+5. **Phase 5:** Generates execution report / Gera relatório de execução
+
+#### Method 2: Web Interface / Método 2: Interface Web
+
+**Start web server / Iniciar servidor web:**
+```bash
+# With alias
+calma-web
+
+# Without alias
+python3 scripts/utils/app.py  # Linux/macOS
+python scripts/utils/app.py   # Windows
+```
+
+**Access in browser / Aceder no navegador:**
+```
+http://localhost:5000
+```
+
+**Web interface features / Funcionalidades da interface web:**
+- Dashboard with statistics / Painel com estatísticas
+- View classification results / Ver resultados de classificação
+- Configure system settings / Configurar definições do sistema
+- View logs in real-time / Ver logs em tempo real
+
+---
+
+### Verifying It Works / Verificar Funcionamento
+
+#### Check System Status / Verificar Estado do Sistema
+
+```bash
+# With alias
+calma-status
+
+# Without alias
+./test_compatibility.sh  # Linux/macOS
+bash test_compatibility.sh  # Windows
+```
+
+This checks:
+- Python version and dependencies
+- Virtual environment
+- Configuration file validity
+- Gmail connectivity
+- Directory structure
+
+#### View Logs / Ver Logs
+
+```bash
+# Recent logs / Logs recentes
+calma-logs
+
+# Or manually / Ou manualmente
+tail -f logs/execucao_*.log
+
+# On Windows / No Windows
+Get-Content logs\execucao_*.log -Tail 50
+```
+
+#### Check Gmail Labels / Verificar Etiquetas Gmail
+
+1. Open Gmail in browser / Abrir Gmail no navegador
+2. Look in left sidebar / Ver na barra lateral esquerda
+3. You should see these labels / Deve ver estas etiquetas:
+   - 📧 **Clean** - Safe attachments / Anexos seguros
+   - ⚠️ **Suspicious** - Potentially dangerous / Potencialmente perigosos
+   - 🚨 **Infected** - Confirmed malware / Malware confirmado
+
+---
+
+### Automated Execution / Execução Automatizada
+
+**Linux/macOS - Add to crontab / Adicionar ao crontab:**
+```bash
+# Run every hour / Executar a cada hora
+crontab -e
+
+# Add line / Adicionar linha:
+0 * * * * cd /path/to/calma && ./calma.sh >> logs/cron.log 2>&1
+```
+
+**Windows - Task Scheduler / Agendador de Tarefas:**
+```powershell
+# Run hourly / Executar a cada hora
+schtasks /create /tn "CALMA" /tr "bash C:\path\to\calma\calma.sh" /sc HOURLY
+```
+
+---
+
 ### Configuration
 
 **Option 1: Interactive Setup (Recommended)**
@@ -74,9 +285,49 @@ python3 scripts/utils/app.py
 - [Security Guide](docs/Security.md)
 - [Sandbox Guide](docs/Sandox.md)
 
+### Project Structure
+
+```
+calma/
+├── config/                 # Configuration files
+├── scripts/
+│   ├── detection/          # Detection engine
+│   ├── ml/                 # ML models
+│   └── utils/              # Utilities and web UI
+├── templates/              # Web UI templates
+├── docs/                   # Documentation
+└── calma.sh                # Main script
+```
+
+### Requirements
+
+- Python 3.8+
+- `jq` (JSON parser)
+- Git Bash or WSL (Windows only)
+
+### Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| `jq` not found | Install via package manager |
+| Template not found | Run from repo root directory |
+| Windows path issues | Use Git Bash or WSL |
+| Permission denied | Run `chmod +x calma.sh` |
+| Import errors | Activate venv: `source venv/bin/activate` |
+
+### Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md)
+
+### License
+
+MIT License - see [LICENSE](LICENSE)
+
+---
+---
 ---
 
-## Portugues
+# 🇵🇹 Documentação em Português
 
 **CALMA** monitoriza anexos de email e classifica-os por nivel de risco usando machine learning. Seguro, isolado e multiplataforma.
 
@@ -108,6 +359,208 @@ python setup.py
 ./calma.sh
 ```
 
+---
+
+## Como Começar / How to Start
+
+### Configuração Inicial / First-Time Setup
+
+#### Passo 1: Instalar Dependências / Step 1: Install Dependencies
+
+**Windows:**
+```bash
+# Usar PowerShell ou Linha de Comandos
+python install_universal.py
+```
+
+**Linux/macOS:**
+```bash
+# Tornar script executável
+chmod +x install_universal.sh
+
+# Executar instalação
+./install_universal.sh
+```
+
+**O que isto faz / What this does:**
+- ✓ Verifica Python 3.8+ / Checks Python 3.8+ is installed
+- ✓ Instala dependências do sistema (jq, etc.) / Installs system dependencies
+- ✓ Cria ambiente virtual / Creates virtual environment
+- ✓ Instala pacotes Python / Installs Python packages
+- ✓ Cria estrutura de diretórios / Creates directory structure
+- ✓ Cria ficheiro de configuração padrão / Creates default config file
+
+#### Passo 2: Configurar Gmail / Step 2: Configure Gmail
+
+**Opção A: Configuração Interativa (Recomendado) / Option A: Interactive Setup (Recommended)**
+```bash
+python setup.py
+```
+
+O assistente guia-o através de:
+1. Seleção de idioma (Português/Inglês)
+2. Verificação de requisitos
+3. Credenciais Gmail (email + password de aplicação)
+4. Chave API VirusTotal (opcional)
+5. Configuração de etiquetas Gmail
+
+**Opção B: Configuração Manual / Option B: Manual Configuration**
+```bash
+# Copiar configuração exemplo / Copy example config
+cp config/calma_config.example.json config/calma_config.json
+
+# Editar com as suas credenciais / Edit with your credentials
+nano config/calma_config.json  # Linux/macOS
+notepad config/calma_config.json  # Windows
+```
+
+**Configuração Gmail Necessária / Required Gmail Setup:**
+1. Ativar 2FA na conta Gmail / Enable 2FA on your Gmail account
+2. Gerar App Password em: https://myaccount.google.com/apppasswords
+3. Usar a app password (não a password normal) na configuração
+
+#### Passo 3: Configurar Atalhos (Opcional) / Step 3: Setup Shell Aliases (Optional)
+
+**Linux/macOS:**
+```bash
+# Adicionar ao ~/.bashrc ou ~/.zshrc
+echo "source $(pwd)/calma_aliases.sh" >> ~/.bashrc
+
+# Recarregar shell
+source ~/.bashrc
+```
+
+**Windows (Git Bash):**
+```bash
+# Adicionar ao ~/.bashrc
+echo "source $(pwd)/calma_aliases.sh" >> ~/.bashrc
+
+# Recarregar
+source ~/.bashrc
+```
+
+Isto disponibiliza comandos convenientes:
+- `calma` - Executar sistema principal
+- `calma-web` - Abrir interface web
+- `calma-logs` - Ver logs recentes
+- `calma-train` - Retreinar modelos ML
+- `calma-status` - Verificar estado do sistema
+
+---
+
+### Executar CALMA / Running CALMA
+
+#### Método 1: Linha de Comandos / Method 1: Command Line
+
+**Com atalhos (se configurado) / With aliases (if configured):**
+```bash
+calma
+```
+
+**Sem atalhos / Without aliases:**
+```bash
+# Linux/macOS
+./calma.sh
+
+# Windows (Git Bash ou WSL)
+bash calma.sh
+```
+
+**O que acontece ao executar / What happens when you run it:**
+1. **Fase 1:** Descarrega anexos do Gmail / Downloads email attachments from Gmail
+2. **Fase 2:** Analisa ficheiros com modelos ML / Analyzes files using ML models
+3. **Fase 3:** Classifica como Limpo/Suspeito/Infectado / Classifies as Clean/Suspicious/Infected
+4. **Fase 4:** Aplica etiquetas Gmail automaticamente / Applies Gmail labels automatically
+5. **Fase 5:** Gera relatório de execução / Generates execution report
+
+#### Método 2: Interface Web / Method 2: Web Interface
+
+**Iniciar servidor web / Start web server:**
+```bash
+# Com atalho
+calma-web
+
+# Sem atalho
+python3 scripts/utils/app.py  # Linux/macOS
+python scripts/utils/app.py   # Windows
+```
+
+**Aceder no navegador / Access in browser:**
+```
+http://localhost:5000
+```
+
+**Funcionalidades da interface web / Web interface features:**
+- Painel com estatísticas / Dashboard with statistics
+- Ver resultados de classificação / View classification results
+- Configurar definições do sistema / Configure system settings
+- Ver logs em tempo real / View logs in real-time
+
+---
+
+### Verificar Funcionamento / Verifying It Works
+
+#### Verificar Estado do Sistema / Check System Status
+
+```bash
+# Com atalho
+calma-status
+
+# Sem atalho
+./test_compatibility.sh  # Linux/macOS
+bash test_compatibility.sh  # Windows
+```
+
+Isto verifica:
+- Versão Python e dependências
+- Ambiente virtual
+- Validade do ficheiro de configuração
+- Conectividade Gmail
+- Estrutura de diretórios
+
+#### Ver Logs / View Logs
+
+```bash
+# Logs recentes / Recent logs
+calma-logs
+
+# Ou manualmente / Or manually
+tail -f logs/execucao_*.log
+
+# No Windows / On Windows
+Get-Content logs\execucao_*.log -Tail 50
+```
+
+#### Verificar Etiquetas Gmail / Check Gmail Labels
+
+1. Abrir Gmail no navegador / Open Gmail in browser
+2. Ver na barra lateral esquerda / Look in left sidebar
+3. Deve ver estas etiquetas / You should see these labels:
+   - 📧 **Clean** - Anexos seguros / Safe attachments
+   - ⚠️ **Suspicious** - Potencialmente perigosos / Potentially dangerous
+   - 🚨 **Infected** - Malware confirmado / Confirmed malware
+
+---
+
+### Execução Automatizada / Automated Execution
+
+**Linux/macOS - Adicionar ao crontab / Add to crontab:**
+```bash
+# Executar a cada hora / Run every hour
+crontab -e
+
+# Adicionar linha / Add line:
+0 * * * * cd /path/to/calma && ./calma.sh >> logs/cron.log 2>&1
+```
+
+**Windows - Agendador de Tarefas / Task Scheduler:**
+```powershell
+# Executar a cada hora / Run hourly
+schtasks /create /tn "CALMA" /tr "bash C:\path\to\calma\calma.sh" /sc HOURLY
+```
+
+---
+
 ### Configuracao
 
 **Opcao 1: Configuracao Interactiva (Recomendado)**
@@ -137,46 +590,83 @@ python3 scripts/utils/app.py
 - [Guia de Seguranca](docs/Security.md)
 - [Guia de Sandbox](docs/Sandox.md)
 
----
-
-## Project Structure / Estrutura do Projeto
+### Estrutura do Projeto
 
 ```
 calma/
-├── config/                 # Configuration / Configuracao
+├── config/                 # Ficheiros de configuracao
 ├── scripts/
-│   ├── detection/          # Detection engine / Motor de deteccao
-│   ├── ml/                 # ML models / Modelos ML
-│   └── utils/              # Utilities and web UI
-├── templates/              # Web UI templates
-├── docs/                   # Documentation / Documentacao
-└── calma.sh                # Main script / Script principal
+│   ├── detection/          # Motor de deteccao
+│   ├── ml/                 # Modelos ML
+│   └── utils/              # Utilitarios e interface web
+├── templates/              # Templates da interface web
+├── docs/                   # Documentacao
+└── calma.sh                # Script principal
 ```
 
----
-
-## Requirements / Requisitos
+### Requisitos
 
 - Python 3.8+
-- `jq` (JSON parser)
-- Git Bash or WSL (Windows only)
+- `jq` (parser JSON)
+- Git Bash ou WSL (apenas Windows)
 
----
+### Resolucao de Problemas
 
-## Troubleshooting / Resolucao de Problemas
+| Problema | Solucao |
+|----------|---------|
+| `jq` nao encontrado | Instalar via gestor de pacotes |
+| Template nao encontrado | Executar a partir da raiz do repo |
+| Problemas de path no Windows | Usar Git Bash ou WSL |
+| Permissao negada | Executar `chmod +x calma.sh` |
+| Erros de import | Ativar venv: `source venv/bin/activate` |
 
-| Problem / Problema | Solution / Solucao |
-|-------------------|-------------------|
-| `jq` not found | Install via package manager |
-| Template not found | Run from repo root directory |
-| Windows path issues | Use Git Bash or WSL |
+### Contribuir
 
----
+Ver [CONTRIBUTING.md](CONTRIBUTING.md)
 
-## Contributing / Contribuir
+### Licenca
 
-See [CONTRIBUTING.md](CONTRIBUTING.md)
+Licenca MIT - ver [LICENSE](LICENSE)
 
-## License / Licenca
 
-MIT License - see [LICENSE](LICENSE)
+- [Guia de Seguranca](docs/Security.md)
+- [Guia de Sandbox](docs/Sandox.md)
+
+### Estrutura do Projeto
+
+```
+calma/
+├── config/                 # Ficheiros de configuracao
+├── scripts/
+│   ├── detection/          # Motor de deteccao
+│   ├── ml/                 # Modelos ML
+│   └── utils/              # Utilitarios e interface web
+├── templates/              # Templates da interface web
+├── docs/                   # Documentacao
+└── calma.sh                # Script principal
+```
+
+### Requisitos
+
+- Python 3.8+
+- `jq` (parser JSON)
+- Git Bash ou WSL (apenas Windows)
+
+### Resolucao de Problemas
+
+| Problema | Solucao |
+|----------|---------|
+| `jq` nao encontrado | Instalar via gestor de pacotes |
+| Template nao encontrado | Executar a partir da raiz do repo |
+| Problemas de path no Windows | Usar Git Bash ou WSL |
+| Permissao negada | Executar `chmod +x calma.sh` |
+| Erros de import | Ativar venv: `source venv/bin/activate` |
+
+### Contribuir
+
+Ver [CONTRIBUTING.md](CONTRIBUTING.md)
+
+### Licenca
+
+Licenca MIT - ver [LICENSE](LICENSE)
+
