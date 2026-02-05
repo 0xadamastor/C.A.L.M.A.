@@ -4,8 +4,7 @@ scikit-learn
 
 pefile
 PyPDF2
-python-magic
-python-magic-bin
+python-magic  # Use esta linha em vez de python-magic-bin
 
 Flask
 Werkzeug
