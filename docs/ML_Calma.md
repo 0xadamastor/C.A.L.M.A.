@@ -56,8 +56,8 @@ These thresholds are designed to reduce false positives without missing real thr
 
 ## Where Models Live
 
-- Models are stored in [scripts/ml/](scripts/ml/)
-- Datasets are also stored in [scripts/ml/](scripts/ml/)
+- Models are stored in [ML](/scripts/ml/)
+- Datasets are also stored in [Datasets](/scripts/ml/)
 
 ---
 
