@@ -40,6 +40,8 @@ git clone <repo-url> calma
 cd calma
 
 # Linux/macOS
+chmod +x install_universal.sh
+chmod +x calma.sh
 ./install_universal.sh
 
 # Windows
